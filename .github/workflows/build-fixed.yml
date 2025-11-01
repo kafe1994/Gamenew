@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK Manual
 
 on:
   push:
@@ -12,68 +12,179 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup environment and build APK
+    - name: Setup Java JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Install Android SDK and tools
       run: |
-        # Actualizar e instalar dependencias del sistema
-        sudo apt-get update
-        sudo apt-get install -y wget unzip nodejs npm
-
-        # Configurar Java 17
-        wget -q https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz
-        tar -xzf openjdk-17.0.2_linux-x64_bin.tar.gz
-        export JAVA_HOME=$PWD/jdk-17.0.2
-        export PATH=$JAVA_HOME/bin:$PATH
-
-        # Configurar Android SDK
+        # Descargar Android Command Line Tools
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p android-sdk/cmdline-tools
         unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
         mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
-
+        
         export ANDROID_HOME=$PWD/android-sdk
+        export ANDROID_SDK_ROOT=$PWD/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-
-        # Aceptar licencias e instalar paquetes Android
+        
+        # Aceptar licencias e instalar componentes necesarios
         yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
-
-        # Instalar Cordova
-        npm install -g cordova@12.0.0
-
-        # Crear proyecto Cordova temporal
-        cordova create temp-app com.agarroles.game "Agar Roles Game"
-        cd temp-app
-
-        # Copiar tus archivos del juego si existen
-        if [ -d "../www" ]; then
-          echo "✅ Copiando archivos www del proyecto..."
-          cp -r ../www/* www/
+        sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34" "cmdline-tools;latest"
+        
+        echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
+        
+    - name: Create Android project structure manually
+      run: |
+        # Crear estructura de proyecto Android manualmente
+        mkdir -p myapp/app/src/main/assets/www
+        mkdir -p myapp/app/src/main/java/com/agarroles/game
+        mkdir -p myapp/app/src/main/res
+        
+        # Copiar archivos web si existen
+        if [ -d "www" ]; then
+          cp -r www/* myapp/app/src/main/assets/www/
+          echo "✅ Archivos www copiados"
         else
-          echo "⚠️ No se encontró directorio www, usando estructura básica"
+          # Crear archivo HTML básico si no existe www
+          cat > myapp/app/src/main/assets/www/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Agar Roles Game</title>
+</head>
+<body>
+    <h1>Agar Roles Game</h1>
+    <p>Game content here</p>
+</body>
+</html>
+EOF
         fi
+        
+        # Crear AndroidManifest.xml
+        cat > myapp/app/src/main/AndroidManifest.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.agarroles.game">
 
-        # Agregar plataforma Android y construir
-        cordova platform add android@12.0.0
-        cordova build android --debug
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Agar Roles Game"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:label="Agar Roles Game"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
 
-        # Mover APK al directorio principal
-        mv platforms/android/app/build/outputs/apk/debug/app-debug.apk ../app-debug.apk
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
+EOF
+
+        # Crear MainActivity.java
+        cat > myapp/app/src/main/java/com/agarroles/game/MainActivity.java << 'EOF'
+package com.agarroles.game;
+
+import android.os.Bundle;
+import org.apache.cordova.*;
+
+public class MainActivity extends CordovaActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        super.init();
+        loadUrl(launchUrl);
+    }
+}
+EOF
+
+        # Crear build.gradle
+        cat > myapp/app/build.gradle << 'EOF'
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 34
+    buildToolsVersion "34.0.0"
+
+    defaultConfig {
+        applicationId "com.agarroles.game"
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode 1
+        versionName "2.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: '*.jar')
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
+EOF
+
+        # Crear gradle wrapper properties
+        cat > myapp/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-7.5-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+
+        echo "✅ Estructura de proyecto Android creada"
+        
+    - name: Build APK with Gradle
+      run: |
+        export ANDROID_HOME=$PWD/android-sdk
+        export ANDROID_SDK_ROOT=$PWD/android-sdk
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+        
+        # Descargar y usar Gradle
+        wget -q https://services.gradle.org/distributions/gradle-7.5-bin.zip
+        unzip -q gradle-7.5-bin.zip
+        export PATH=$PWD/gradle-7.5/bin:$PATH
+        
+        cd myapp
+        
+        # Construir APK
+        gradle assembleDebug --no-daemon --stacktrace
+        
         cd ..
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
-        path: app-debug.apk
+        path: myapp/app/build/outputs/apk/debug/*.apk
         retention-days: 7
         
-    - name: Show build result
+    - name: Check build result
       run: |
-        if [ -f "app-debug.apk" ]; then
+        if [ -f "myapp/app/build/outputs/apk/debug/app-debug.apk" ]; then
           echo "✅ ✅ ✅ BUILD SUCCESSFUL! APK created."
-          ls -lh app-debug.apk
+          ls -lh myapp/app/build/outputs/apk/debug/app-debug.apk
         else
-          echo "❌ BUILD FAILED - No APK found"
-          echo "Current directory contents:"
-          ls -la
+          echo "❌ BUILD FAILED - Checking structure..."
+          find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
         fi
