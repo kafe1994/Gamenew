@@ -46,7 +46,7 @@ jobs:
         # Crear un package.json mínimo para evitar conflictos
         cat > package-minimal.json << 'EOF'
 {
-  "name": "agar-roles-game-build",
+  "name": "agar-rolles-game-build",
   "version": "2.0.0",
   "devDependencies": {
     "cordova-android": "^12.0.0"
