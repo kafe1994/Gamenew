@@ -2,148 +2,54 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
+    - name: Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         
-    - name: Debug project files
+    - name: Install Cordova
       run: |
-        echo "=== Project Structure ==="
-        ls -la
-        echo "=== package.json ==="
-        cat package.json
-        echo "=== Checking for config.xml ==="
-        if [ -f "config.xml" ]; then
-          echo "✅ config.xml exists"
-        else
-          echo "❌ config.xml missing"
-        fi
-        
-    - name: Install Cordova ONLY (skip npm install)
-      run: |
-        echo "=== Installing Cordova globally ==="
-        npm install -g cordova@12.0.0 --force
+        npm install -g cordova@12.0.0
         cordova --version
         
-    - name: Create minimal package.json for build
-      run: |
-        echo "=== Creating minimal package.json ==="
-        cat > package-minimal.json << 'EOF'
-{
-  "name": "agar-rolles-game-build",
-  "version": "2.0.0",
-  "devDependencies": {
-    "cordova-android": "^12.0.0"
-  }
-}
-EOF
-        cp package-minimal.json package.json
-        cat package.json
-        
-    - name: Install only cordova-android
-      run: |
-        echo "=== Installing cordova-android only ==="
-        npm install cordova-android@12.0.0 --save-dev --no-package-lock
-        
-    - name: Setup Java JDK
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '11'
         
-    - name: Setup Android SDK
+    - name: Setup Android
       uses: android-actions/setup-android@v2
         
     - name: Install Android SDK
       run: |
         yes | sdkmanager "platforms;android-33"
         yes | sdkmanager "build-tools;33.0.0"
-        yes | sdkmanager "platform-tools"
         
-    - name: Create Cordova project if needed
+    - name: Check files
       run: |
-        echo "=== Setting up Cordova project ==="
-        if [ ! -f "config.xml" ]; then
-          echo "Creating new Cordova project..."
-          cordova create . com.agarroles.game "Agar Roles Game"
-        else
-          echo "✅ Using existing Cordova project"
+        ls -la
+        if [ -f "config.xml" ]; then
+          echo "✅ config.xml exists"
         fi
-        
-    - name: Copy www directory to Cordova project
-      run: |
-        echo "=== Setting up www directory ==="
-        if [ -d "www" ]; then
-          echo "✅ www directory exists"
-          ls -la www/
-        else
-          echo "⚠️ www directory not found, creating basic structure"
-          mkdir -p www
-          mkdir -p www/js
-          mkdir -p www/css
-          mkdir -p www/img
-          cat > www/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Agar Roles Game</title>
-</head>
-<body>
-    <h1>Agar Roles Game</h1>
-    <div id="game">Game content will be here</div>
-</body>
-</html>
-EOF
-        fi
-        
-    - name: Add Android platform
-      run: |
-        echo "=== Adding Android platform ==="
-        cordova platform remove android 2>/dev/null || true
-        cordova platform add android@12.0.0
-        
-    - name: Add essential plugins
-      run: |
-        echo "=== Adding Cordova plugins ==="
-        cordova plugin add cordova-plugin-whitelist
-        cordova plugin add cordova-plugin-statusbar
         
     - name: Build APK
       run: |
-        echo "=== Building APK ==="
-        cordova build android --debug --verbose
-        
-    - name: Check build results
-      run: |
-        echo "=== Build Results ==="
-        find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
-        if [ -d "platforms/android/app/build/outputs/apk" ]; then
-          echo "APK directory contents:"
-          ls -la platforms/android/app/build/outputs/apk/
-        fi
+        cordova platform add android
+        cordova build android --debug
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: android-apk
-        path: |
-          platforms/android/app/build/outputs/apk/**/*.apk
-          **/*.apk
-        retention-days: 7
+        path: platforms/android/app/build/outputs/apk/debug/*.apk
