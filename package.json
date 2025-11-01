@@ -1,0 +1,106 @@
+{
+  "name": "agar-roles-game",
+  "version": "2.0.0",
+  "description": "Un emocionante juego tipo agar.io con roles únicos y modos de juego variados",
+  "main": "www/index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "python -m http.server 8080",
+    "build": "cordova build android",
+    "build:debug": "cordova build android --debug",
+    "build:release": "cordova build android --release",
+    "serve": "cordova serve",
+    "clean": "cordova clean",
+    "clean:all": "cordova clean && rm -rf platforms/ && rm -rf plugins/",
+    "prepare": "cordova prepare",
+    "platform": "cordova platform add android",
+    "platform:remove": "cordova platform remove android",
+    "plugins": "cordova plugin list",
+    "plugins:add": "cordova plugin add",
+    "deploy": "cordova build android && adb install -r platforms/android/app/build/outputs/apk/debug/app-debug.apk",
+    "test:emulator": "cordova build android && adb install -r platforms/android/app/build/outputs/apk/debug/app-debug.apk && adb shell am start -n com.agarroles.game/.MainActivity",
+    "info": "echo \"Project Info:\" && echo \"Version: 2.0.0\" && echo \"Platforms:\" && cordova platform list && echo \"Plugins:\" && cordova plugin list",
+    "check": "bash build.sh --check-only",
+    "install:deps": "npm install && cordova prepare",
+    "local:build": "bash build.sh"
+  },
+  "keywords": [
+    "agar.io",
+    "game",
+    "cordova",
+    "mobile",
+    "android",
+    "io-game",
+    "multiplayer",
+    "roles",
+    "survival"
+  ],
+  "author": {
+    "name": "Agar Roles Team",
+    "email": "developer@agarroles.game",
+    "url": "https://agarroles.game"
+  },
+  "license": "MIT",
+  "homepage": "https://agarroles.game",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agarroles/game.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agarroles/game/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "cordova": {
+    "plugins": {
+      "cordova-plugin-statusbar": {
+        "PACKAGE_NAME": "com.agarroles.game"
+      },
+      "cordova-plugin-vibration": {
+        "PACKAGE_NAME": "com.agarroles.game"
+      },
+      "cordova-plugin-whitelist": {
+        "PACKAGE_NAME": "com.agarroles.game"
+      },
+      "cordova-plugin-splashscreen": {
+        "PACKAGE_NAME": "com.agarroles.game"
+      }
+    },
+    "platforms": [
+      "android"
+    ]
+  },
+  "devDependencies": {
+    "cordova": "^12.0.0",
+    "cordova-android": "^12.0.0",
+    "cordova-plugin-whitelist": "^1.3.5",
+    "cordova-plugin-statusbar": "^3.0.0",
+    "cordova-plugin-vibration": "^3.1.1",
+    "cordova-plugin-splashscreen": "^6.0.2"
+  },
+  "platforms": [
+    "android"
+  ],
+  "config": {
+    "android_sdk_path": "/opt/android-sdk",
+    "build_tools_version": "33.0.0",
+    "target_sdk_version": "33",
+    "min_sdk_version": "21"
+  },
+  "cordova-commands": {
+    "prepare": {
+      "android": "cordova prepare android"
+    },
+    "build": {
+      "android": "cordova build android"
+    },
+    "run": {
+      "android": "cordova run android"
+    },
+    "clean": {
+      "android": "cordova clean android"
+    }
+  }
+}

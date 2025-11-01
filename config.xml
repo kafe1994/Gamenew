@@ -1,0 +1,164 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.agarroles.game" version="2.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Agar.io: Roles Edition</name>
+    <description>
+        Un emocionante juego tipo agar.io con roles únicos y modos de juego variados.
+        Compete contra otros jugadores IA en diferentes roles: Depredador, Tanque, Sigilo y Sanador.
+    </description>
+    <author email="developer@agarroles.game" href="https://agarroles.game">
+        Agar Roles Team
+    </author>
+    
+    <content src="index.html" />
+    
+    <!-- Configuración de acceso a recursos -->
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+    
+    <!-- Plataforma Android -->
+    <platform name="android">
+        <allow-intent href="market:*" />
+        
+        <!-- Configuraciones específicas de Android -->
+        <icon density="ldpi" src="res/android/icon.png" />
+        <icon density="mdpi" src="res/android/icon.png" />
+        <icon density="hdpi" src="res/android/icon.png" />
+        <icon density="xhdpi" src="res/android/icon.png" />
+        <icon density="xxhdpi" src="res/android/icon.png" />
+        <icon density="xxxhdpi" src="res/android/icon.png" />
+        
+        <!-- Splash screens -->
+        <splash density="land-ldpi" src="res/android/splash-land.png" />
+        <splash density="land-mdpi" src="res/android/splash-land.png" />
+        <splash density="land-hdpi" src="res/android/splash-land.png" />
+        <splash density="land-xhdpi" src="res/android/splash-land.png" />
+        <splash density="land-xxhdpi" src="res/android/splash-land.png" />
+        <splash density="land-xxxhdpi" src="res/android/splash-land.png" />
+        <splash density="port-ldpi" src="res/android/splash-port.png" />
+        <splash density="port-mdpi" src="res/android/splash-port.png" />
+        <splash density="port-hdpi" src="res/android/splash-port.png" />
+        <splash density="port-xhdpi" src="res/android/splash-port.png" />
+        <splash density="port-xxhdpi" src="res/android/splash-port.png" />
+        <splash density="port-xxxhdpi" src="res/android/splash-port.png" />
+        
+        <!-- Configuraciones de compilación -->
+        <edit-config file="AndroidManifest.xml" mode="merge" target="/manifest/application">
+            <application android:theme="@style/AppTheme" />
+        </edit-config>
+        
+        <!-- Permisos -->
+        <uses-permission android:name="android.permission.INTERNET" />
+        <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+        <uses-permission android:name="android.permission.VIBRATE" />
+        <uses-permission android:name="android.permission.WAKE_LOCK" />
+        <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    </platform>
+    
+    <!-- Configuración global del juego -->
+    <preference name="DisallowOverscroll" value="true" />
+    <preference name="android-minSdkVersion" value="21" />
+    <preference name="android-targetSdkVersion" value="33" />
+    <preference name="Orientation" value="portrait" />
+    <preference name="Fullscreen" value="true" />
+    <preference name="StatusBarOverlaysWebView" value="true" />
+    <preference name="StatusBarBackgroundColor" value="#0d1b2a" />
+    <preference name="StatusBarStyle" value="lightcontent" />
+    
+    <!-- Configuraciones de rendimiento -->
+    <preference name="SplashScreenDelay" value="3000" />
+    <preference name="FadeSplashScreen" value="true" />
+    <preference name="FadeSplashScreenDuration" value="750" />
+    <preference name="SplashMaintainAspectRatio" value="true" />
+    
+    <!-- Configuraciones de plugins -->
+    <plugin name="cordova-plugin-statusbar" spec="^3.0.0" />
+    <plugin name="cordova-plugin-vibration" spec="^3.1.1" />
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.5" />
+    <plugin name="cordova-plugin-splashscreen" spec="^6.0.2" />
+    
+    <!-- Configuraciones específicas del juego -->
+    <preference name="GameVersion" value="2.0.0" />
+    <preference name="GameName" value="Agar.io: Roles Edition" />
+    <preference name="GameAuthor" value="Agar Roles Team" />
+    
+    <!-- Metadatos adicionales -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <!-- Iconos para iOS (si se añade soporte futuro) -->
+    <platform name="ios">
+        <allow-intent href="itms:*" />
+        <allow-intent href="itms-apps:*" />
+        
+        <icon height="57" platform="ios" src="res/ios/icon.png" width="57" />
+        <icon height="114" platform="ios" src="res/ios/icon@2x.png" width="114" />
+        <icon height="40" platform="ios" src="res/ios/icon-40.png" width="40" />
+        <icon height="80" platform="ios" src="res/ios/icon-40@2x.png" width="80" />
+        <icon height="120" platform="ios" src="res/ios/icon-40@3x.png" width="120" />
+        <icon height="50" platform="ios" src="res/ios/icon-50.png" width="50" />
+        <icon height="100" platform="ios" src="res/ios/icon-50@2x.png" width="100" />
+        <icon height="60" platform="ios" src="res/ios/icon-60.png" width="60" />
+        <icon height="120" platform="ios" src="res/ios/icon-60@2x.png" width="120" />
+        <icon height="180" platform="ios" src="res/ios/icon-60@3x.png" width="180" />
+        <icon height="72" platform="ios" src="res/ios/icon-72.png" width="72" />
+        <icon height="144" platform="ios" src="res/ios/icon-72@2x.png" width="144" />
+        <icon height="76" platform="ios" src="res/ios/icon-76.png" width="76" />
+        <icon height="152" platform="ios" src="res/ios/icon-76@2x.png" width="152" />
+        <icon height="167" platform="ios" src="res/ios/icon-83.5@2x.png" width="167" />
+        <icon height="29" platform="ios" src="res/ios/icon-small.png" width="29" />
+        <icon height="58" platform="ios" src="res/ios/icon-small@2x.png" width="58" />
+        <icon height="87" platform="ios" src="res/ios/icon-small@3x.png" width="87" />
+        
+        <!-- Splash screens para iOS -->
+        <splash height="1136" platform="ios" src="res/ios/Default-568h@2x~iphone.png" width="640" />
+        <splash height="1334" platform="ios" src="res/ios/Default-667h.png" width="750" />
+        <splash height="2208" platform="ios" src="res/ios/Default-736h.png" width="1242" />
+        <splash height="1536" platform="ios" src="res/ios/Default-Landscape@2x~ipad.png" width="2048" />
+        <splash height="2048" platform="ios" src="res/ios/Default-Landscape@~ipadpro.png" width="2732" />
+        <splash height="768" platform="ios" src="res/ios/Default-Landscape~ipad.png" width="1024" />
+        <splash height="2048" platform="ios" src="res/ios/Default-Landscape@2x~ipad.png" width="2048" />
+        <splash height="2732" platform="ios" src="res/ios/Default-Landscape@~ipadpro.png" width="2732" />
+        <splash height="1024" platform="ios" src="res/ios/Default-Landscape~ipad.png" width="1024" />
+        <splash height="1125" platform="ios" src="res/ios/Default-2436h.png" width="2436" />
+        <splash height="1242" platform="ios" src="res/ios/Default-2208~iphone5s.png" width="1242" />
+        <splash height="1242" platform="ios" src="res/ios/Default-2208@iphone5s.png" width="1242" />
+        <splash height="1536" platform="ios" src="res/ios/Default@2x~iphone.png" width="640" />
+        <splash height="960" platform="ios" src="res/ios/Default~iphone.png" width="320" />
+        <splash height="480" platform="ios" src="res/ios/Default~iphone.png" width="320" />
+        <splash height="960" platform="ios" src="res/ios/Default@2x~iphone.png" width="640" />
+        <splash height="480" platform="ios" src="res/ios/Default~iphone.png" width="320" />
+        <splash height="1024" platform="ios" src="res/ios/Default-Portrait@~ipad.png" width="768" />
+        <splash height="768" platform="ios" src="res/ios/Default-Portrait~ipad.png" width="768" />
+        <splash height="2048" platform="ios" src="res/ios/Default-Portrait@2x~ipad.png" width="1536" />
+        <splash height="2732" platform="ios" src="res/ios/Default-Portrait@~ipadpro.png" width="2048" />
+        <splash height="1366" platform="ios" src="res/ios/Default-Landscape-1366h.png" width="1366" />
+        <splash height="2436" platform="ios" src="res/ios/Default-2436h.png" width="1125" />
+    </platform>
+    
+    <!-- Configuraciones de plugins -->
+    <plugin name="cordova-plugin-statusbar" spec="^3.0.0" />
+    <plugin name="cordova-plugin-vibration" spec="^3.1.1" />
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.5" />
+    <plugin name="cordova-plugin-splashscreen" spec="^6.0.2" />
+    <plugin name="cordova-plugin-wkwebview-engine" spec="^1.2.1" />
+    
+    <!-- Configuración de build -->
+    <platform name="android">
+        <icon density="ldpi" src="res/android/drawable-ldpi-icon.png" />
+        <icon density="mdpi" src="res/android/drawable-mdpi-icon.png" />
+        <icon density="hdpi" src="res/android/drawable-hdpi-icon.png" />
+        <icon density="xhdpi" src="res/android/drawable-xhdpi-icon.png" />
+        <icon density="xxhdpi" src="res/android/drawable-xxhdpi-icon.png" />
+        <icon density="xxxhdpi" src="res/android/drawable-xxxhdpi-icon.png" />
+        
+        <!-- Configuración de tema -->
+        <resource-file src="res/android/styles.xml" target="res/values/styles.xml" />
+    </platform>
+</widget>

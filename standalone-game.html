@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Agar Roles Game - Mobile Optimized</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: #f0f0f0;
+            border: none;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #roleDisplay {
+            background: rgba(255, 193, 7, 0.9);
+            color: #333;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        #joystick {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        #joystickKnob {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease;
+        }
+
+        #abilityButton {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            border: none;
+            color: white;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: auto;
+            touch-action: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+        }
+
+        .menu-title {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .menu-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .menu-section h3 {
+            margin-bottom: 15px;
+            color: #ffeb3b;
+        }
+
+        .menu-button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            pointer-events: auto;
+        }
+
+        .menu-button:hover {
+            transform: scale(1.05);
+        }
+
+        .role-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+        }
+
+        .mode-button {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+        }
+
+        #pauseButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .final-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .menu-title {
+                font-size: 2em;
+            }
+            
+            .menu-button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+
+        /* Hide elements when playing */
+        .playing {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div id="hud">
+                <div class="stat-box">
+                    <div>Score: <span id="score">0</span></div>
+                    <div>Size: <span id="size">10</span></div>
+                    <div>Time: <span id="time">0:00</span></div>
+                </div>
+                <div id="roleDisplay">Rol: Ninguno</div>
+            </div>
+
+            <div id="controls">
+                <div id="joystick">
+                    <div id="joystickKnob"></div>
+                </div>
+                <button id="abilityButton">Habilidad</button>
+            </div>
+
+            <button id="pauseButton">⏸️</button>
+        </div>
+
+        <div id="menu">
+            <h1 class="menu-title">Agar Roles Game</h1>
+            
+            <div class="menu-section">
+                <h3>Selecciona tu Rol</h3>
+                <button class="menu-button role-button" onclick="selectRole('explorer')">🔍 Explorador</button>
+                <button class="menu-button role-button" onclick="selectRole('hunter')">🏹 Cazador</button>
+                <button class="menu-button role-button" onclick="selectRole('guardian')">🛡️ Guardián</button>
+                <button class="menu-button role-button" onclick="selectRole('assassin')">🗡️ Asesino</button>
+            </div>
+
+            <div class="menu-section">
+                <h3>Modo de Juego</h3>
+                <button class="menu-button mode-button" onclick="selectMode('classic')">Clásico</button>
+                <button class="menu-button mode-button" onclick="selectMode('team')">Equipos</button>
+                <button class="menu-button mode-button" onclick="selectMode('survival')">Supervivencia</button>
+                <button class="menu-button mode-button" onclick="selectMode('king')">Rey del Mapa</button>
+            </div>
+
+            <div class="menu-section">
+                <button class="menu-button" onclick="startGame()" style="background: linear-gradient(45deg, #4CAF50, #45a049);">
+                    🎮 ¡Empezar Juego!
+                </button>
+            </div>
+        </div>
+
+        <div id="gameOver">
+            <h2>¡Juego Terminado!</h2>
+            <div class="final-stats">
+                <p>Puntuación Final: <span id="finalScore">0</span></p>
+                <p>Tiempo Superviviente: <span id="finalTime">0:00</span></p>
+                <p>Tamaño Máximo: <span id="finalSize">0</span></p>
+            </div>
+            <button class="menu-button" onclick="showMenu()">Volver al Menú</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración del juego
+        const GAME_CONFIG = {
+            canvas: {
+                width: window.innerWidth,
+                height: window.innerHeight
+            },
+            player: {
+                startSize: 10,
+                speed: 2,
+                maxSize: 100
+            },
+            food: {
+                count: 50,
+                minSize: 5,
+                maxSize: 15
+            },
+            bots: {
+                count: 10,
+                minSize: 8,
+                maxSize: 30
+            }
+        };
+
+        // Estado del juego
+        let gameState = {
+            isPlaying: false,
+            isPaused: false,
+            score: 0,
+            size: 10,
+            startTime: 0,
+            elapsedTime: 0,
+            selectedRole: null,
+            selectedMode: null,
+            player: null,
+            food: [],
+            bots: []
+        };
+
+        // Roles del juego
+        const ROLES = {
+            explorer: {
+                name: "Explorador",
+                description: "Velocidad aument",
+                ability: "Escaneo del área",
+                color: "#4CAF50",
+                speedMultiplier: 1.5,
+                ability: function() {
+                    // Revelar todos los enemigos por 3 segundos
+                    showNotification("¡Enemigos revelados por 3 segundos!");
+                    // Implementar lógica de escaneo
+                }
+            },
+            hunter: {
+                name: "Cazador",
+                description: "Daño extra",
+                ability: "Rastrear objetivos",
+                color: "#FF5722",
+                speedMultiplier: 1.0,
+                ability: function() {
+                    // Activar modo caza - objetivos resaltados
+                    showNotification("¡Modo caza activado!");
+                    // Implementar lógica de rastreo
+                }
+            },
+            guardian: {
+                name: "Guardián",
+                description: "Escudo protector",
+                ability: "Inmunidad temporal",
+                color: "#2196F3",
+                speedMultiplier: 0.8,
+                ability: function() {
+                    // Crear escudo temporal
+                    showNotification("¡Escudo activado por 5 segundos!");
+                    // Implementar lógica de escudo
+                }
+            },
+            assassin: {
+                name: "Asesino",
+                description: "Velocidad y sigilo",
+                ability: "Modo invisible",
+                color: "#9C27B0",
+                speedMultiplier: 2.0,
+                ability: function() {
+                    // Activar invisibilidad temporal
+                    showNotification("¡Invisibilidad activada por 4 segundos!");
+                    // Implementar lógica de invisibilidad
+                }
+            }
+        };
+
+        // Elementos del DOM
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const menu = document.getElementById('menu');
+        const gameOver = document.getElementById('gameOver');
+
+        // Redimensionar canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            GAME_CONFIG.canvas.width = window.innerWidth;
+            GAME_CONFIG.canvas.height = window.innerHeight;
+        }
+
+        // Funciones del menú
+        function selectRole(role) {
+            gameState.selectedRole = role;
+            document.getElementById('roleDisplay').textContent = `Rol: ${ROLES[role].name}`;
+            showNotification(`${ROLES[role].name} seleccionado`);
+        }
+
+        function selectMode(mode) {
+            gameState.selectedMode = mode;
+            showNotification(`Modo ${mode} seleccionado`);
+        }
+
+        function startGame() {
+            if (!gameState.selectedRole || !gameState.selectedMode) {
+                alert('Por favor selecciona un rol y un modo de juego');
+                return;
+            }
+
+            gameState.isPlaying = true;
+            gameState.isPaused = false;
+            gameState.score = 0;
+            gameState.size = GAME_CONFIG.player.startSize;
+            gameState.startTime = Date.now();
+            gameState.elapsedTime = 0;
+
+            // Crear jugador
+            gameState.player = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                size: GAME_CONFIG.player.startSize,
+                color: ROLES[gameState.selectedRole].color,
+                role: gameState.selectedRole
+            };
+
+            // Generar comida
+            generateFood();
+            
+            // Generar bots
+            generateBots();
+
+            // Ocultar menú y mostrar UI
+            menu.classList.add('playing');
+            document.getElementById('ui').style.display = 'block';
+
+            // Iniciar bucle del juego
+            gameLoop();
+        }
+
+        function showMenu() {
+            gameState.isPlaying = false;
+            gameState.isPaused = false;
+            menu.classList.remove('playing');
+            gameOver.style.display = 'none';
+            document.getElementById('ui').style.display = 'none';
+            clearCanvas();
+        }
+
+        function showGameOver() {
+            gameState.isPlaying = false;
+            
+            // Mostrar estadísticas finales
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('finalTime').textContent = formatTime(gameState.elapsedTime);
+            document.getElementById('finalSize').textContent = Math.round(gameState.size);
+            
+            gameOver.style.display = 'flex';
+        }
+
+        // Generar elementos del juego
+        function generateFood() {
+            gameState.food = [];
+            for (let i = 0; i < GAME_CONFIG.food.count; i++) {
+                gameState.food.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * (GAME_CONFIG.food.maxSize - GAME_CONFIG.food.minSize) + GAME_CONFIG.food.minSize,
+                    color: getRandomColor()
+                });
+            }
+        }
+
+        function generateBots() {
+            gameState.bots = [];
+            for (let i = 0; i < GAME_CONFIG.bots.count; i++) {
+                gameState.bots.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * (GAME_CONFIG.bots.maxSize - GAME_CONFIG.bots.minSize) + GAME_CONFIG.bots.minSize,
+                    color: getRandomColor(),
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2
+                });
+            }
+        }
+
+        // Bucle principal del juego
+        function gameLoop() {
+            if (!gameState.isPlaying) return;
+
+            if (!gameState.isPaused) {
+                updateGame();
+                renderGame();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Actualizar lógica del juego
+        function updateGame() {
+            // Actualizar tiempo
+            gameState.elapsedTime = Date.now() - gameState.startTime;
+
+            // Actualizar jugador
+            updatePlayer();
+
+            // Actualizar bots
+            updateBots();
+
+            // Verificar colisiones
+            checkCollisions();
+
+            // Actualizar UI
+            updateUI();
+        }
+
+        // Actualizar jugador
+        function updatePlayer() {
+            if (gameState.player) {
+                // Aplicar movimiento basado en joystick
+                const joystickData = getJoystickData();
+                const speed = GAME_CONFIG.player.speed * (ROLES[gameState.player.role]?.speedMultiplier || 1);
+                
+                gameState.player.x += joystickData.x * speed;
+                gameState.player.y += joystickData.y * speed;
+
+                // Mantener jugador en límites
+                gameState.player.x = Math.max(gameState.player.size, Math.min(canvas.width - gameState.player.size, gameState.player.x));
+                gameState.player.y = Math.max(gameState.player.size, Math.min(canvas.height - gameState.player.size, gameState.player.y));
+            }
+        }
+
+        // Actualizar bots
+        function updateBots() {
+            gameState.bots.forEach(bot => {
+                bot.x += bot.vx;
+                bot.y += bot.vy;
+
+                // Rebotar en bordes
+                if (bot.x <= 0 || bot.x >= canvas.width) bot.vx *= -1;
+                if (bot.y <= 0 || bot.y >= canvas.height) bot.vy *= -1;
+
+                // Mantener en límites
+                bot.x = Math.max(bot.size, Math.min(canvas.width - bot.size, bot.x));
+                bot.y = Math.max(bot.size, Math.min(canvas.height - bot.size, bot.y));
+            });
+        }
+
+        // Verificar colisiones
+        function checkCollisions() {
+            // Colisión con comida
+            gameState.food = gameState.food.filter(food => {
+                const distance = Math.sqrt(
+                    Math.pow(gameState.player.x - food.x, 2) + 
+                    Math.pow(gameState.player.y - food.y, 2)
+                );
+
+                if (distance < gameState.player.size + food.size) {
+                    gameState.score += Math.round(food.size);
+                    gameState.size = Math.min(GAME_CONFIG.player.maxSize, gameState.size + 0.5);
+                    gameState.player.size = gameState.size;
+                    return false;
+                }
+                return true;
+            });
+
+            // Generar nueva comida si es necesario
+            if (gameState.food.length < GAME_CONFIG.food.count / 2) {
+                generateFood();
+            }
+
+            // Colisión con bots (game over)
+            gameState.bots.forEach(bot => {
+                const distance = Math.sqrt(
+                    Math.pow(gameState.player.x - bot.x, 2) + 
+                    Math.pow(gameState.player.y - bot.y, 2)
+                );
+
+                if (distance < gameState.player.size + bot.size) {
+                    showGameOver();
+                }
+            });
+        }
+
+        // Renderizar juego
+        function renderGame() {
+            clearCanvas();
+
+            // Dibujar comida
+            gameState.food.forEach(food => {
+                ctx.fillStyle = food.color;
+                ctx.beginPath();
+                ctx.arc(food.x, food.y, food.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Dibujar bots
+            gameState.bots.forEach(bot => {
+                ctx.fillStyle = bot.color;
+                ctx.beginPath();
+                ctx.arc(bot.x, bot.y, bot.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Contorno
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // Dibujar jugador
+            if (gameState.player) {
+                ctx.fillStyle = gameState.player.color;
+                ctx.beginPath();
+                ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Contorno
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Indicador de rol
+                ctx.fillStyle = '#fff';
+                ctx.font = `${Math.max(10, gameState.player.size / 3)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(gameState.player.role.charAt(0).toUpperCase(), gameState.player.x, gameState.player.y + 5);
+            }
+        }
+
+        // Funciones de utilidad
+        function clearCanvas() {
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function getRandomColor() {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('size').textContent = Math.round(gameState.size);
+            document.getElementById('time').textContent = formatTime(gameState.elapsedTime);
+        }
+
+        function formatTime(milliseconds) {
+            const seconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function showNotification(message) {
+            // Crear notificación temporal
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                z-index: 1000;
+                animation: fadeInOut 3s ease-in-out;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        }
+
+        // Controles de joystick
+        let joystickData = { x: 0, y: 0 };
+        let isJoystickActive = false;
+
+        function setupJoystick() {
+            const joystick = document.getElementById('joystick');
+            const knob = document.getElementById('joystickKnob');
+
+            function updateJoystick(clientX, clientY) {
+                const rect = joystick.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                const deltaX = clientX - centerX;
+                const deltaY = clientY - centerY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const maxDistance = rect.width / 2 - 20;
+                
+                if (distance <= maxDistance) {
+                    knob.style.transform = `translate(${deltaX - 20}px, ${deltaY - 20}px)`;
+                    joystickData.x = deltaX / maxDistance;
+                    joystickData.y = deltaY / maxDistance;
+                } else {
+                    const angle = Math.atan2(deltaY, deltaX);
+                    const constrainedX = Math.cos(angle) * maxDistance;
+                    const constrainedY = Math.sin(angle) * maxDistance;
+                    
+                    knob.style.transform = `translate(${constrainedX - 20}px, ${constrainedY - 20}px)`;
+                    joystickData.x = constrainedX / maxDistance;
+                    joystickData.y = constrainedY / maxDistance;
+                }
+            }
+
+            function resetJoystick() {
+                knob.style.transform = 'translate(-50%, -50%)';
+                joystickData.x = 0;
+                joystickData.y = 0;
+            }
+
+            // Eventos touch
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isJoystickActive = true;
+                updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+            });
+
+            joystick.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (isJoystickActive) {
+                    updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            });
+
+            joystick.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isJoystickActive = false;
+                resetJoystick();
+            });
+
+            // Eventos mouse (para testing en desktop)
+            joystick.addEventListener('mousedown', (e) => {
+                isJoystickActive = true;
+                updateJoystick(e.clientX, e.clientY);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isJoystickActive) {
+                    updateJoystick(e.clientX, e.clientY);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isJoystickActive = false;
+                resetJoystick();
+            });
+        }
+
+        function getJoystickData() {
+            return joystickData;
+        }
+
+        // Botón de habilidad
+        function setupAbilityButton() {
+            const abilityButton = document.getElementById('abilityButton');
+            
+            abilityButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameState.selectedRole && ROLES[gameState.selectedRole]) {
+                    ROLES[gameState.selectedRole].ability();
+                }
+            });
+
+            abilityButton.addEventListener('click', () => {
+                if (gameState.selectedRole && ROLES[gameState.selectedRole]) {
+                    ROLES[gameState.selectedRole].ability();
+                }
+            });
+        }
+
+        // Botón de pausa
+        function setupPauseButton() {
+            const pauseButton = document.getElementById('pauseButton');
+            
+            pauseButton.addEventListener('click', () => {
+                gameState.isPaused = !gameState.isPaused;
+                pauseButton.textContent = gameState.isPaused ? '▶️' : '⏸️';
+            });
+        }
+
+        // CSS para animaciones
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Inicialización
+        function init() {
+            resizeCanvas();
+            setupJoystick();
+            setupAbilityButton();
+            setupPauseButton();
+
+            // Event listeners para resize
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Prevenir zoom en mobile
+            document.addEventListener('gesturestart', function (e) {
+                e.preventDefault();
+            });
+
+            // Prevenir menú contextual
+            document.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+            });
+
+            console.log('🎮 Agar Roles Game inicializado correctamente');
+        }
+
+        // Iniciar cuando la página esté cargada
+        window.addEventListener('load', init);
+
+        // Agregar estilos de notificación
+        document.addEventListener('DOMContentLoaded', () => {
+            const notificationStyle = document.createElement('style');
+            notificationStyle.textContent = `
+                .notification {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    z-index: 1000;
+                    animation: fadeInOut 3s ease-in-out;
+                    pointer-events: none;
+                }
+            `;
+            document.head.appendChild(notificationStyle);
+        });
+    </script>
+</body>
+</html>

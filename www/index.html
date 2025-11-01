@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1b2a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Agar.io: Roles Edition</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-canvas" id="gameCanvas"></div>
+        
+        <div class="ui-overlay">
+            <div class="score-board">
+                <h3>PUNTUACIÓN</h3>
+                <div class="score-value" id="scoreValue">0</div>
+            </div>
+            
+            <div class="role-display">
+                <div class="role-name" id="roleName">SELECCIONAR ROL</div>
+                <div class="role-icon" id="roleIcon">?</div>
+            </div>
+            
+            <div class="controls">
+                <p>MOVER: MOUSE/TÁCTIL • DIVIDIR: CLICK/TAP • EJECTAR: ESPACIO/BOTÓN</p>
+            </div>
+            
+            <div class="hud-info">
+                <div class="timer" id="timer" style="display: none;">
+                    <span>Tiempo:</span> <span id="timeLeft">00:00</span>
+                </div>
+                <div class="health-bar" id="healthBar">
+                    <div class="health-fill" id="healthFill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="virtual-joystick" id="virtualJoystick">
+            <div class="joystick-handle" id="joystickHandle"></div>
+        </div>
+        
+        <div class="mobile-controls" id="mobileControls">
+            <button class="action-btn" id="splitBtn">D</button>
+            <button class="action-btn" id="ejectBtn">E</button>
+            <button class="action-btn" id="pauseBtn">P</button>
+        </div>
+        
+        <div class="mode-selector" id="modeSelector" style="display: none;">
+            <h3 style="margin-bottom: 20px; color: #4ecdc4;">SELECCIONAR MODO</h3>
+            <div class="mode-grid">
+                <div class="mode-card" data-mode="classic">
+                    <div class="mode-icon">🏆</div>
+                    <h4>CLÁSICO</h4>
+                    <p>Modo tradicional<br><small>8 enemigos • 100 comida</small></p>
+                </div>
+                <div class="mode-card" data-mode="survival">
+                    <div class="mode-icon">⚡</div>
+                    <h4>SUPERVIVENCIA</h4>
+                    <p>Sobrevive el mayor tiempo<br><small>15 enemigos • 80 comida</small></p>
+                </div>
+                <div class="mode-card" data-mode="timed">
+                    <div class="mode-icon">⏱️</div>
+                    <h4>TIEMPO</h4>
+                    <p>3 minutos para puntuar<br><small>10 enemigos • 120 comida</small></p>
+                </div>
+                <div class="mode-card" data-mode="swarm">
+                    <div class="mode-icon">🐝</div>
+                    <h4>ENJAMBRE</h4>
+                    <p>Muchos enemigos pequeños<br><small>25 enemigos • 150 comida</small></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="title-screen" id="titleScreen">
+            <div class="title-content">
+                <h1>AGAR.IO<br>ROLES EDITION</h1>
+                <p>¡Elige tu rol y domina el campo de batalla! Cada rol tiene fortalezas y debilidades únicas contra otros roles.</p>
+                
+                <div class="role-selection">
+                    <div class="role-card" data-role="predator">
+                        <div class="icon">P</div>
+                        <h4>DEPREDADOR</h4>
+                        <p class="role-stats">V: 2.2 • T: 20<br>Fortaleza: Velocidad<br>Contra: Tanque</p>
+                    </div>
+                    <div class="role-card" data-role="tank">
+                        <div class="icon">T</div>
+                        <h4>TANQUE</h4>
+                        <p class="role-stats">V: 0.8 • T: 35<br>Fortaleza: Resistencia<br>Contra: Sanador</p>
+                    </div>
+                    <div class="role-card" data-role="stealth">
+                        <div class="icon">S</div>
+                        <h4>SIGILO</h4>
+                        <p class="role-stats">V: 1.6 • T: 15<br>Fortaleza: Invisibilidad<br>Contra: Depredador</p>
+                    </div>
+                    <div class="role-card" data-role="healer">
+                        <div class="icon">H</div>
+                        <h4>SANADOR</h4>
+                        <p class="role-stats">V: 1.2 • T: 25<br>Fortaleza: Regeneración<br>Contra: Sigilo</p>
+                    </div>
+                </div>
+                
+                <div class="start-section">
+                    <button class="start-btn" id="startBtn">SELECCIONAR MODO</button>
+                    <div class="version-info">v2.0 - Enhanced Graphics</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-over-screen" id="gameOverScreen" style="display: none;">
+            <div class="game-over-content">
+                <h2 id="gameOverTitle">¡JUEGO TERMINADO!</h2>
+                <div class="final-score">
+                    <div class="score-label">Puntuación Final</div>
+                    <div class="score-value-large" id="finalScore">0</div>
+                </div>
+                <div class="game-stats" id="gameStats">
+                    <div class="stat-item">
+                        <span>Tiempo Jugado:</span>
+                        <span id="playTime">0:00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Comida Consumida:</span>
+                        <span id="foodEaten">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Enemigos Derrotados:</span>
+                        <span id="enemiesDefeated">0</span>
+                    </div>
+                </div>
+                <div class="game-over-actions">
+                    <button class="action-btn-large" onclick="restartGame()">JUGAR DE NUEVO</button>
+                    <button class="action-btn-secondary" onclick="goToMenu()">MENÚ PRINCIPAL</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading-screen" id="loadingScreen">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <h3>Cargando Juego...</h3>
+                <div class="loading-progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="cordova.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
