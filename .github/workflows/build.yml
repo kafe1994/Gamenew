@@ -46,7 +46,8 @@ jobs:
         
     - name: Create and build project
       run: |
-        npm cache clean --force
+        # Limpiar cache de forma compatible
+        npm cache verify
         cordova create cordova-build com.agarroles.game "Agar Roles"
         cd cordova-build
         
