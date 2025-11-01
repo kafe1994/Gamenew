@@ -1,56 +1,55 @@
 name: Build Cordova Android APK
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+push:
+branches: [ main ]
+pull_request:
+branches: [ main ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
-      # 👇 Instala Node sin intentar usar el cache interno (para evitar el error)
-      - name: Setup Node.js (safe mode)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: false
+  # Instala Node.js sin usar el cache interno
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: 18
 
-      # 👇 Configura manualmente un cache limpio para npm
-      - name: Prepare npm cache manually
-        run: |
-          mkdir -p ${{ runner.temp }}/npm-cache
-          npm config set cache ${{ runner.temp }}/npm-cache --global
-          echo "✅ Manual npm cache configurado: ${{ runner.temp }}/npm-cache"
+  # Configura manualmente un cache limpio para npm
+  - name: Prepare npm cache manually
+    run: |
+      mkdir -p ${{ runner.temp }}/npm-cache
+      npm config set cache ${{ runner.temp }}/npm-cache --global
+      echo "✅ Manual npm cache configurado: ${{ runner.temp }}/npm-cache"
 
-      - name: Install Cordova CLI
-        run: npm install -g cordova@11
+  - name: Install Cordova CLI
+    run: npm install -g cordova@11
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 12.0
-          accept-android-sdk-licenses: true
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
+  - name: Setup Android SDK
+    uses: android-actions/setup-android@v3
+    with:
+      cmdline-tools-version: 12.0
+      accept-android-sdk-licenses: true
+      packages: |
+        platforms;android-34
+        build-tools;34.0.0
 
-      - name: Install dependencies
-        run: npm install
+  - name: Install dependencies
+    run: npm install
 
-      - name: Build Cordova APK
-        run: |
-          cordova platform remove android || true
-          cordova platform add android@12.0.0
-          cordova build android --debug
+  - name: Build Cordova APK
+    run: |
+      cordova platform remove android || true
+      cordova platform add android@12.0.0
+      cordova build android --debug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Cordova-Android-APK
-          path: platforms/android/app/build/outputs/apk/debug/*.apk
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: Cordova-Android-APK
+      path: platforms/android/app/build/outputs/apk/debug/*.apk
