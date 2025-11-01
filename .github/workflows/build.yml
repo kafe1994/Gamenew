@@ -13,15 +13,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clean npm configuration
+      - name: Clean local npm config (safe)
         run: |
+          # elimina .npmrc si existe (evitar que contenga registry privado)
           rm -f .npmrc || true
-          npm config delete cache || true
-          npm config set registry https://registry.npmjs.org/ || true
-          npm config set progress false
-          npm config set fund false
-          npm config set loglevel error
-          npm config set unsafe-perm true
+          # reducir salida de npm para CI (opciones estándar)
+          npm config set progress false || true
+          npm config set fund false || true
+          npm config set loglevel error || true
           echo "CI=true" >> $GITHUB_ENV
 
       - name: Setup Node.js
@@ -63,14 +62,13 @@ jobs:
           fi
 
           # instalar cordova-android localmente (evita cordova-fetch en CI)
-          # Uso cordova-android@11 para mayor compatibilidad con Android 5.1+
           npm install cordova-android@11.0.0 --no-save
 
           # reset plataforma y añadir desde node_modules
           cordova platform remove android || true
           cordova platform add ./node_modules/cordova-android
 
-          # build debug (rápido). Cambia a --release cuando tengas keystore configurado
+          # build debug (rápido). Cambia a --release cuando firmes
           cordova build android --debug
 
       - name: Upload APK
