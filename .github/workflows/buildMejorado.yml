@@ -1,4 +1,4 @@
-name: Build APK Simple
+name: Build Cordova APK
 
 on:
   push:
@@ -30,37 +30,22 @@ jobs:
           unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
           mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
           echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
           echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
 
       - name: Install Android packages
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33"
 
-      - name: Install Cordova with specific Android platform
+      - name: Install Cordova and build
         run: |
-          npm install -g cordova@11.0.0
-          # Instalar la plataforma Android por separado
-          npm install -g cordova-android@11.0.0
-
-      - name: Create and build project
-        run: |
-          cordova create myapp com.agarroles.game "Agar Roles"
-          cd myapp
-          
-          if [ -d "../www" ]; then
-            cp -r ../www/* www/
-            echo "Archivos www copiados"
-          fi
-          
-          # Forzar versión específica de Android
-          cordova platform add android@11.0.0
+          npm install -g cordova
+          npm install
+          cordova platform add android
           cordova build android --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: myapp/platforms/android/app/build/outputs/apk/debug/*.apk
+          name: agar-roles-apk
+          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
