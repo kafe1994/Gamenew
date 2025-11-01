@@ -23,51 +23,50 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
         
-    - name: Install Android SDK
+    - name: Install Android SDK and setup PATH correctly
       run: |
+        # Descargar Android SDK
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p android-sdk/cmdline-tools
         unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
         mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
         
+        # Configurar variables de entorno CORRECTAMENTE
         echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
-        echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
         
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+    - name: Install Android packages
+      run: |
+        # Aceptar licencias e instalar paquetes
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
         
     - name: Install Cordova and Android platform GLOBALLY
       run: |
-        # Instalar TODO globalmente para evitar problemas de npm
         npm install -g cordova@12.0.0
         npm install -g cordova-android@12.0.0
-        
-        # Verificar instalaciones
         cordova --version
-        echo "Cordova Android:"
-        npm list -g cordova-android
         
-    - name: Create Cordova project FRESCO
+    - name: Create Cordova project
       run: |
-        # Crear proyecto nuevo en directorio temporal
         cordova create cordova-build com.agarroles.game "Agar Roles"
         cd cordova-build
         
-        # Copiar tus archivos del juego
+        # Copiar archivos del juego
         if [ -d "../www" ]; then
-          echo "✅ Copiando archivos www..."
           cp -r ../www/* www/
+          echo "✅ Archivos www copiados"
+        else
+          echo "⚠️ No hay archivos www, creando básico"
+          echo "<html><body><h1>Agar Roles Game</h1></body></html>" > www/index.html
         fi
         
     - name: Build APK
       run: |
         cd cordova-build
-        
-        # Agregar plataforma usando la instalación global
         cordova platform add android --nofetch
-        
-        # Construir APK
         cordova build android --debug
         
     - name: Upload APK
@@ -75,3 +74,4 @@ jobs:
       with:
         name: android-apk
         path: cordova-build/platforms/android/app/build/outputs/apk/debug/*.apk
+        retention-days: 7
