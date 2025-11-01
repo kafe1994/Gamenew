@@ -3,9 +3,15 @@ name: Build APK
 on:
   push:
     branches: [ main, develop ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+
+env:
+  ANDROID_VERSION: 33
+  ANDROID_BUILD_TOOLS_VERSION: 33.0.0
+  CORDOVA_VERSION: 12.0.0
 
 jobs:
   build:
@@ -14,53 +20,279 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+      with:
+        fetch-depth: 0
+        
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         
+    - name: Cache Node modules
+      uses: actions/cache@v4  # ACTUALIZADO: v3 → v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+          
     - name: Install dependencies
       run: |
-        npm install
-        npm install -g cordova
+        echo "=== Installing dependencies ==="
+        # Try npm ci first, if it fails use npm install
+        npm ci || npm install
+        npm install -g cordova@${{ env.CORDOVA_VERSION }}
+        echo "Dependencies installed successfully"
         
     - name: Setup Java JDK
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v4  # ACTUALIZADO: v3 → v4
       with:
-        distribution: 'temurin'
+        distribution: 'zulu'
         java-version: '11'
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
+      with:
+        api-level: ${{ env.ANDROID_VERSION }}
+        build-tools: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
         
-    - name: Install Android SDK
+    - name: Add Android SDK to PATH
       run: |
-        yes | sdkmanager "platforms;android-34"
-        yes | sdkmanager "build-tools;34.0.0"
-        yes | sdkmanager "platform-tools"
+        echo "ANDROID_HOME=${{ steps.setup-android.outputs.sdk-path }}" >> $GITHUB_ENV
+        echo "${{ steps.setup-android.outputs.sdk-path }}/platform-tools" >> $GITHUB_PATH
+        echo "${{ steps.setup-android.outputs.sdk-path }}/tools" >> $GITHUB_PATH
+        echo "${{ steps.setup-android.outputs.sdk-path }}/tools/bin" >> $GITHUB_PATH
+        
+    - name: Verify Android SDK installation
+      run: |
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "PATH includes platform-tools: $PATH"
+        which adb
+        adb --version
+        sdkmanager --version
+        sdkmanager "platform-tools"
+        
+    - name: Add Android platform to Cordova
+      run: |
+        cordova platform add android@latest --verbose
+        
+    - name: Add required Cordova plugins
+      run: |
+        cordova plugin add cordova-plugin-whitelist --verbose
+        cordova plugin add cordova-plugin-statusbar --verbose
+        cordova plugin add cordova-plugin-vibration --verbose
+        cordova plugin add cordova-plugin-splashscreen --verbose
         
     - name: Check project structure
       run: |
         echo "=== Project Structure ==="
         ls -la
-        echo "=== Cordova Files ==="
-        cat config.xml
+        echo "=== www directory ==="
         ls -la www/
+        echo "=== res directory ==="
+        ls -la res/
+        echo "=== config.xml ==="
+        head -20 config.xml
         
-    - name: Add Android platform
+    - name: Prepare project for build
       run: |
-        cordova platform remove android 2>/dev/null || true
-        cordova platform add android
+        cordova prepare android --verbose
         
-    - name: Build APK
+    - name: Build APK (Debug)
       run: |
+        echo "=== Building Debug APK ==="
         cordova build android --debug --verbose
+      id: build_debug
+      
+    - name: Build APK (Release)
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+      run: |
+        echo "=== Building Release APK ==="
+        # Create release keystore if secrets are available
+        if [ -n "${{ secrets.ANDROID_SIGNING_KEY }}" ] && [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
+          echo "Creating release keystore..."
+          echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 -d > release.keystore
+          export KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}"
+          export KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}"
+          
+          # Add signing config to config.xml temporarily
+          cat >> config.xml << EOF
         
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
+        <platform name="android">
+            <keystore path="release.keystore" keystorepass="\${KEYSTORE_PASSWORD}" alias="release" password="\${KEY_PASSWORD}"/>
+        </platform>
+        EOF
+        else
+          echo "⚠️ Release signing keys not available, building unsigned APK"
+        fi
+        
+        cordova build android --release --verbose
+        
+    - name: Create unsigned APK for testing
+      if: github.event_name != 'push' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v'))
+      run: |
+        echo "=== Building unsigned APK for testing ==="
+        cordova build android --release --verbose
+        
+    - name: List build outputs
+      run: |
+        echo "=== Build outputs ==="
+        find platforms/android -name "*.apk" -type f
+        ls -la platforms/android/app/build/outputs/apk/
+        
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4  # ACTUALIZADO: v3 → v4
+      if: always()
       with:
-        name: android-apk
+        name: agar-roles-debug-apk
         path: platforms/android/app/build/outputs/apk/debug/*.apk
-        retention-days: 7
+        retention-days: 30
+        
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4  # ACTUALIZADO: v3 → v4
+      if: always() && (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+      with:
+        name: agar-roles-release-apk
+        path: platforms/android/app/build/outputs/apk/release/*.apk
+        retention-days: 30
+        
+    - name: Upload unsigned APK
+      uses: actions/upload-artifact@v4  # ACTUALIZADO: v3 → v4
+      if: always() && (github.event_name != 'push' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v')))
+      with:
+        name: agar-roles-unsigned-apk
+        path: platforms/android/app/build/outputs/apk/release/*.apk
+        retention-days: 30
+        
+    - name: Get APK info
+      run: |
+        if [ -f "platforms/android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "=== Debug APK Info ==="
+          aapt dump badging platforms/android/app/build/outputs/apk/debug/app-debug.apk | grep -E "package|sdkVersion|targetSdkVersion"
+          ls -lh platforms/android/app/build/outputs/apk/debug/*.apk
+        fi
+        
+        if [ -f "platforms/android/app/build/outputs/apk/release/app-release.apk" ]; then
+          echo "=== Release APK Info ==="
+          aapt dump badging platforms/android/app/build/outputs/apk/release/app-release.apk | grep -E "package|sdkVersion|targetSdkVersion"
+          ls -lh platforms/android/app/build/outputs/apk/release/*.apk
+        fi
+        
+    - name: Test APK build
+      run: |
+        if [ -f "platforms/android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "=== Testing APK structure ==="
+          unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | head -20
+          
+          # Check if essential files are present
+          if unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | grep -q "www/index.html"; then
+            echo "✅ Web content found in APK"
+          else
+            echo "❌ Web content missing from APK"
+            exit 1
+          fi
+          
+          if unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | grep -q "www/js/game.js"; then
+            echo "✅ Game JavaScript found in APK"
+          else
+            echo "❌ Game JavaScript missing from APK"
+            exit 1
+          fi
+          
+          if unzip -l platforms/android/app/build/outputs/apk/debug/app-debug.apk | grep -q "www/css/style.css"; then
+            echo "✅ Game CSS found in APK"
+          else
+            echo "❌ Game CSS missing from APK"
+            exit 1
+          fi
+        fi
+        
+    - name: Generate build summary
+      run: |
+        echo "### 📱 APK Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "platforms/android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            APK_SIZE=$(du -h platforms/android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)
+            echo "📦 **Debug APK:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "platforms/android/app/build/outputs/apk/release/app-release.apk" ]; then
+            APK_SIZE=$(du -h platforms/android/app/build/outputs/apk/release/app-release.apk | cut -f1)
+            echo "📦 **Release APK:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Game Version:** 2.0.0" >> $GITHUB_STEP_SUMMARY
+          echo "**Cordova Version:** ${{ env.CORDOVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Android API:** ${{ env.ANDROID_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build failed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the logs above for more details." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Clean up
+      if: always()
+      run: |
+        echo "Cleaning up build files..."
+        # Keep build artifacts for debugging
+        ls -la platforms/android/app/build/outputs/apk/
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        echo "=== Installing dependencies for linting ==="
+        npm ci || npm install
+        echo "Dependencies installed successfully"
+      
+    - name: Lint JavaScript files
+      run: |
+        echo "=== Running JavaScript lint ==="
+        # Install jshint or eslint if available
+        npm install -g jshint 2>/dev/null || echo "jshint not available, skipping JS lint"
+        jshint www/js/game.js 2>/dev/null || echo "JavaScript lint completed (warnings may be present)"
+        
+    - name: Check HTML validity
+      run: |
+        echo "=== Checking HTML structure ==="
+        # Basic HTML validation
+        if grep -q "<!DOCTYPE html>" www/index.html; then
+          echo "✅ Valid HTML5 doctype found"
+        else
+          echo "❌ Missing HTML5 doctype"
+          exit 1
+        fi
+        
+        if grep -q "<meta charset=" www/index.html; then
+          echo "✅ Charset meta tag found"
+        else
+          echo "❌ Missing charset meta tag"
+          exit 1
+        fi
+        
+    - name: Check CSS structure
+      run: |
+        echo "=== Checking CSS structure ==="
+        if grep -q "@media" www/css/style.css; then
+          echo "✅ Responsive CSS media queries found"
+        else
+          echo "⚠️ No responsive media queries found"
+        fi

@@ -1,0 +1,161 @@
+name: Build APK (Simplified)
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  ANDROID_VERSION: 33
+  ANDROID_BUILD_TOOLS_VERSION: 33.0.0
+  CORDOVA_VERSION: 12.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install Cordova globally
+      run: |
+        echo "=== Installing Cordova globally ==="
+        npm install -g cordova@${{ env.CORDOVA_VERSION }}
+        cordova --version
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4  # ACTUALIZADO: v3 → v4
+      with:
+        distribution: 'zulu'
+        java-version: '11'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: ${{ env.ANDROID_VERSION }}
+        build-tools: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
+        
+    - name: Add Android SDK to PATH
+      run: |
+        echo "ANDROID_HOME=${{ steps.setup-android.outputs.sdk-path }}" >> $GITHUB_ENV
+        echo "${{ steps.setup-android.outputs.sdk-path }}/platform-tools" >> $GITHUB_PATH
+        echo "${{ steps.setup-android.outputs.sdk-path }}/tools" >> $GITHUB_PATH
+        echo "${{ steps.setup-android.outputs.sdk-path }}/tools/bin" >> $GITHUB_PATH
+        
+    - name: Verify Android SDK installation
+      run: |
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "PATH includes platform-tools: $PATH"
+        which adb
+        adb --version
+        sdkmanager --version
+        
+    - name: Check project structure
+      run: |
+        echo "=== Project Structure ==="
+        ls -la
+        echo "=== www directory ==="
+        ls -la www/ || echo "www directory not found"
+        echo "=== res directory ==="
+        ls -la res/ || echo "res directory not found"
+        echo "=== config.xml ==="
+        if [ -f "config.xml" ]; then
+          head -20 config.xml
+        else
+          echo "config.xml not found"
+        fi
+        
+    - name: Add Android platform to Cordova
+      run: |
+        echo "=== Adding Android platform ==="
+        cordova platform add android@latest --verbose || echo "Android platform may already be added"
+        
+    - name: Add required Cordova plugins
+      run: |
+        echo "=== Adding Cordova plugins ==="
+        cordova plugin add cordova-plugin-whitelist --verbose || echo "Plugin may already be installed"
+        cordova plugin add cordova-plugin-statusbar --verbose || echo "Plugin may already be installed"
+        cordova plugin add cordova-plugin-vibration --verbose || echo "Plugin may already be installed"
+        cordova plugin add cordova-plugin-splashscreen --verbose || echo "Plugin may already be installed"
+        
+    - name: Prepare project for build
+      run: |
+        echo "=== Preparing project ==="
+        cordova prepare android --verbose
+        
+    - name: Build APK (Debug)
+      run: |
+        echo "=== Building Debug APK ==="
+        cordova build android --debug --verbose
+      id: build_debug
+      
+    - name: Build APK (Release)
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+      run: |
+        echo "=== Building Release APK ==="
+        cordova build android --release --verbose
+        
+    - name: List build outputs
+      run: |
+        echo "=== Build outputs ==="
+        find platforms/android -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
+        ls -la platforms/android/app/build/outputs/apk/ 2>/dev/null || echo "APK directory not found"
+        
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4  # ACTUALIZADO: v3 → v4
+      if: always()
+      with:
+        name: agar-roles-debug-apk
+        path: platforms/android/app/build/outputs/apk/debug/*.apk
+        retention-days: 30
+        
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4  # ACTUALIZADO: v3 → v4
+      if: always() && (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+      with:
+        name: agar-roles-release-apk
+        path: platforms/android/app/build/outputs/apk/release/*.apk
+        retention-days: 30
+        
+    - name: Generate build summary
+      run: |
+        echo "### 📱 APK Build Summary (Simplified)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "platforms/android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            APK_SIZE=$(du -h platforms/android/app/build/outputs/apk/debug/app-debug.apk 2>/dev/null | cut -f1)
+            echo "📦 **Debug APK:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f "platforms/android/app/build/outputs/apk/release/app-release.apk" ]; then
+            APK_SIZE=$(du -h platforms/android/app/build/outputs/apk/release/app-release.apk 2>/dev/null | cut -f1)
+            echo "📦 **Release APK:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Game Version:** 2.0.0" >> $GITHUB_STEP_SUMMARY
+          echo "**Cordova Version:** ${{ env.CORDOVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Android API:** ${{ env.ANDROID_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build failed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the logs above for more details." >> $GITHUB_STEP_SUMMARY
+        fi

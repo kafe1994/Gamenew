@@ -35,16 +35,12 @@
     "roles",
     "survival"
   ],
-  "author": {
-    "name": "Agar Roles Team",
-    "email": "developer@agarroles.game",
-    "url": "https://agarroles.game"
-  },
+  "author": "Agar Roles Team <developer@agarroles.game> (https://agarroles.game)",
   "license": "MIT",
   "homepage": "https://agarroles.game",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agarroles/game.git"
+    "url": "git+https://github.com/agarroles/game.git"
   },
   "bugs": {
     "url": "https://github.com/agarroles/game/issues"
