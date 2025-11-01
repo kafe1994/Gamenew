@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  CORDOVA_PROJECT_ID: com.agarroles.game
+  CORDOVA_PROJECT_NAME: "Agar Roles"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,17 +17,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+
+      - name: Setup Node.js (without automatic cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Ensure npm cache dir and optionally restore cache
+        id: npm-cache
+        run: |
+          # crea un cache local en runner.temp para evitar fallos con `npm config get cache`
+          NPM_CACHE_DIR="${RUNNER_TEMP}/npm-cache"
+          mkdir -p "$NPM_CACHE_DIR"
+          npm config set cache "$NPM_CACHE_DIR" --global || true
+          echo "NPM cache configured at: $NPM_CACHE_DIR"
+          npm --version
+          node --version
+
+      - name: Restore npm cache (optional)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/npm-cache
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install Android SDK manually
         run: |
@@ -42,23 +66,34 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;33.0.2" "platforms;android-33"
 
-      - name: Install Cordova
+      - name: Install Cordova CLI globally
         run: |
           npm install -g cordova@12.0.0
           cordova --version
 
       - name: Create and build project
         run: |
-          cordova create cordova-build com.agarroles.game "Agar Roles"
+          # crear proyecto si no existe
+          if [ ! -d "cordova-build" ]; then
+            cordova create cordova-build $CORDOVA_PROJECT_ID "$CORDOVA_PROJECT_NAME"
+          fi
+
           cd cordova-build
 
+          # copiar www si existe en repo root
           if [ -d "../www" ]; then
-            cp -r ../www/* www/
+            cp -r ../www/* www/ || true
             echo "Archivos www copiados"
           fi
 
+          # instalar cordova-android localmente (evita cordova-fetch en CI)
           npm install cordova-android@11.0.0 --no-save
+
+          # reset plataforma y añadir desde node_modules
+          cordova platform remove android || true
           cordova platform add ./node_modules/cordova-android
+
+          # build debug (rápido). Cambia a --release cuando firmes
           cordova build android --debug
 
       - name: Upload APK
