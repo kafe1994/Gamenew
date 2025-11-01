@@ -1,49 +1,95 @@
-name: Android CI
+name: Build APK with Cordova (Android)
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Set up Java JDK
-        uses: actions/setup-java@v3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Clean npm configuration & set CI-friendly options
+        run: |
+          npm config set progress false
+          npm config set fund false
+          npm config set loglevel error
+          npm config set unsafe-perm true
+          export CI=true
+
+      - name: Set up Java JDK 11
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Set up Android SDK
+      - name: Set up Android SDK (API 33)
         uses: android-actions/setup-android@v2
         with:
           api-level: 33
           build-tools: 33.0.2
-          ndk: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install Cordova CLI
-        run: npm install -g cordova@12.0.0
-
-      - name: Install project dependencies
-        run: npm ci
-
-      - name: Add Android platform
+      - name: Install Cordova CLI globally
         run: |
-          cordova platform remove android
-          cordova platform add android@12.0.0
+          npm install -g cordova@12.0.0
+          cordova --version
 
-      - name: Build Android APK
-        run: cordova build android --release
+      - name: Install project npm deps (if package.json present)
+        if: files.exists('package.json')
+        run: |
+          npm ci
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v3
+      - name: Create Cordova project and copy www (if needed)
+        run: |
+          # create project in cordova-build only if not exists
+          if [ ! -d "cordova-build" ]; then
+            cordova create cordova-build com.agarroles.game "Agar Roles"
+          fi
+          cd cordova-build
+
+          if [ -d "../www" ]; then
+            cp -r ../www/* www/ || true
+            echo "Archivos www copiados"
+          fi
+
+          # evitar problemas con cordova-fetch instalando la plataforma localmente
+          npm install cordova-android@12.0.0 --no-save
+
+          # añadir la plataforma desde node_modules (más fiable en CI)
+          cordova platform remove android || true
+          cordova platform add ./node_modules/cordova-android
+
+          # build (debug para pruebas; cambia a --release cuando firmes)
+          cordova build android --debug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
-          path: platforms/android/app/build/outputs/apk/release/app-release.apk
+          name: android-apk-debug
+          path: cordova-build/platforms/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: (Optional) Build release APK
+        if: false
+        run: |
+          cd cordova-build
+          # ajustar signingConfigs en platforms/android/gradle.properties / build.gradle según sea necesario
+          cordova build android --release
+
+      - name: Upload release APK artifact (if exists)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-release
+          path: cordova-build/platforms/android/app/build/outputs/apk/release/*.apk
+          retention-days: 7
