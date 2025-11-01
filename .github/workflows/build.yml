@@ -1,10 +1,17 @@
-name: Build Cordova Android APK
+name: Build APK
 
 on:
 push:
-branches: [ main ]
+branches: [ main, develop ]
+tags: [ 'v*' ]
 pull_request:
-branches: [ main ]
+branches: [ main, develop ]
+workflow_dispatch:
+
+env:
+ANDROID_VERSION: 33
+ANDROID_BUILD_TOOLS_VERSION: 33.0.0
+CORDOVA_VERSION: 12.0.0
 
 jobs:
 build:
@@ -13,43 +20,177 @@ runs-on: ubuntu-latest
 steps:
   - name: Checkout repository
     uses: actions/checkout@v4
-
-  # Instala Node.js sin usar el cache interno
+    with:
+      fetch-depth: 0
+      
   - name: Setup Node.js
     uses: actions/setup-node@v4
     with:
-      node-version: 18
-
-  # Configura manualmente un cache limpio para npm
-  - name: Prepare npm cache manually
-    run: |
-      mkdir -p ${{ runner.temp }}/npm-cache
-      npm config set cache ${{ runner.temp }}/npm-cache --global
-      echo "✅ Manual npm cache configurado: ${{ runner.temp }}/npm-cache"
-
-  - name: Install Cordova CLI
-    run: npm install -g cordova@11
-
-  - name: Setup Android SDK
-    uses: android-actions/setup-android@v3
+      node-version: '18'
+      
+  - name: Cache Node modules
+    uses: actions/cache@v4
     with:
-      cmdline-tools-version: 12.0
-      accept-android-sdk-licenses: true
-      packages: |
-        platforms;android-34
-        build-tools;34.0.0
-
+      path: ~/.npm
+      key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+      restore-keys: |
+        ${{ runner.os }}-node-
+        
   - name: Install dependencies
-    run: npm install
+    run: |
+      echo "=== Installing dependencies ==="
+      npm ci || npm install
+      npm install -g cordova@${{ env.CORDOVA_VERSION }}
+      echo "Dependencies installed successfully"
+      
+  - name: Setup Java JDK
+    uses: actions/setup-java@v4
+    with:
+      distribution: 'zulu'
+      java-version: '11'
+      
+  - name: Setup Android SDK
+    uses: android-actions/setup-android@v2
+    with:
+      api-level: ${{ env.ANDROID_VERSION }}
+      build-tools: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
 
-  - name: Build Cordova APK
+  - name: Add Android SDK to PATH
+    run: |
+      echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+      echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+      echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+      
+  - name: Verify Android SDK installation
+    run: |
+      echo "ANDROID_HOME: $ANDROID_SDK_ROOT"
+      echo "PATH includes platform-tools: $PATH"
+      which adb
+      adb --version
+      sdkmanager --version
+      sdkmanager "platform-tools"
+
+  - name: Prepare Cordova platform
     run: |
       cordova platform remove android || true
-      cordova platform add android@12.0.0
-      cordova build android --debug
+      cordova platform add android@${{ env.CORDOVA_VERSION }} --verbose
+      
+  - name: Add required Cordova plugins
+    run: |
+      cordova plugin add cordova-plugin-whitelist --verbose
+      cordova plugin add cordova-plugin-statusbar --verbose
+      cordova plugin add cordova-plugin-vibration --verbose
+      cordova plugin add cordova-plugin-splashscreen --verbose
+      
+  - name: Check project structure
+    run: |
+      echo "=== Project Structure ==="
+      ls -la
+      echo "=== www directory ==="
+      ls -la www/
+      echo "=== res directory ==="
+      ls -la res/
+      echo "=== config.xml ==="
+      head -20 config.xml
+      
+  - name: Prepare project for build
+    run: cordova prepare android --verbose
+    
+  - name: Build Debug APK
+    run: cordova build android --debug --verbose
+    id: build_debug
+    
+  - name: Build Release APK
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    run: |
+      if [ -n "${{ secrets.ANDROID_SIGNING_KEY }}" ] && [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
+        echo "Creating release keystore..."
+        echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 -d > release.keystore
+        export KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}"
+        export KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}"
+        
+        cat >> config.xml << EOF
 
-  - name: Upload APK
+<platform name="android">
+  <keystore path="release.keystore" keystorepass="\${KEYSTORE_PASSWORD}" alias="release" password="\${KEY_PASSWORD}"/>
+</platform>
+EOF
+          else
+            echo "⚠️ Release signing keys not available, building unsigned APK"
+          fi      cordova build android --release --verbose
+      
+  - name: Upload Debug APK
     uses: actions/upload-artifact@v4
+    if: always()
     with:
-      name: Cordova-Android-APK
+      name: agar-roles-debug-apk
       path: platforms/android/app/build/outputs/apk/debug/*.apk
+      retention-days: 30
+      
+  - name: Upload Release APK
+    uses: actions/upload-artifact@v4
+    if: always() && (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+    with:
+      name: agar-roles-release-apk
+      path: platforms/android/app/build/outputs/apk/release/*.apk
+      retention-days: 30
+      
+  - name: Get APK info
+    run: |
+      if [ -f "platforms/android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+        echo "=== Debug APK Info ==="
+        aapt dump badging platforms/android/app/build/outputs/apk/debug/app-debug.apk | grep -E "package|sdkVersion|targetSdkVersion"
+      fi
+      if [ -f "platforms/android/app/build/outputs/apk/release/app-release.apk" ]; then
+        echo "=== Release APK Info ==="
+        aapt dump badging platforms/android/app/build/outputs/apk/release/app-release.apk | grep -E "package|sdkVersion|targetSdkVersion"
+      fi
+      
+  - name: Clean up
+    if: always()
+    run: |
+      echo "Cleaning up build files..."
+      ls -la platforms/android/app/build/outputs/apk/
+
+lint:
+runs-on: ubuntu-latest
+steps:
+- name: Checkout repository
+uses: actions/checkout@v4
+
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '18'
+      
+  - name: Install dependencies
+    run: |
+      npm ci || npm install
+      
+  - name: Lint JavaScript
+    run: |
+      npm install -g jshint || echo "jshint not available, skipping"
+      jshint www/js/game.js || echo "Lint warnings may be present"
+      
+  - name: Check HTML validity
+    run: |
+      if grep -q '<!DOCTYPE html>' www/index.html; then
+        echo "✅ Valid HTML5 doctype found"
+      else
+        echo "❌ Missing HTML5 doctype"
+        exit 1
+      fi
+      if grep -q '<meta charset=' www/index.html; then
+        echo "✅ Charset meta tag found"
+      else
+        echo "❌ Missing charset meta tag"
+        exit 1
+      fi
+      
+  - name: Check CSS structure
+    run: |
+      if grep -q "@media" www/css/style.css; then
+        echo "✅ Responsive CSS media queries found"
+      else
+        echo "⚠️ No responsive media queries found"
+      fi
