@@ -19,66 +19,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
         
-    - name: Check project structure
-      run: |
-        echo "=== Current Structure ==="
-        ls -la
-        echo "=== Checking for essential files ==="
-        if [ -f "config.xml" ]; then
-          echo "✅ config.xml found"
-        else
-          echo "❌ config.xml not found"
-        fi
-        if [ -d "www" ]; then
-          echo "✅ www directory found"
-          ls -la www/
-        else
-          echo "❌ www directory not found"
-        fi
-        
-    - name: Create package.json if missing
-      run: |
-        if [ ! -f "package.json" ]; then
-          echo "Creating package.json..."
-          cat > package.json << 'EOF'
-{
-  "name": "gamenew",
-  "version": "1.0.0",
-  "description": "Mi juego con Cordova",
-  "main": "index.js",
-  "scripts": {
-    "build": "cordova build android",
-    "prepare": "cordova prepare"
-  },
-  "dependencies": {
-    "cordova-android": "^12.0.0"
-  },
-  "devDependencies": {
-    "cordova": "^12.0.0"
-  },
-  "keywords": [
-    "cordova",
-    "android",
-    "game"
-  ],
-  "author": "kafe1994",
-  "license": "MIT"
-}
-EOF
-          echo "✅ package.json created"
-        else
-          echo "✅ package.json already exists"
-          cat package.json
-        fi
-        
-    - name: Install Cordova globally
-      run: |
-        npm install -g cordova@12.0.0
-        
-    - name: Install project dependencies
+    - name: Install dependencies
       run: |
         npm install
+        npm install -g cordova
         
     - name: Setup Java JDK
       uses: actions/setup-java@v4
@@ -95,40 +41,26 @@ EOF
         yes | sdkmanager "build-tools;34.0.0"
         yes | sdkmanager "platform-tools"
         
-    - name: Initialize Cordova project
+    - name: Check project structure
       run: |
-        if [ ! -f "config.xml" ]; then
-          echo "Initializing Cordova project..."
-          cordova create . com.gaming.enhancedagar GameNew
-        else
-          echo "✅ Cordova project already initialized"
-        fi
+        echo "=== Project Structure ==="
+        ls -la
+        echo "=== Cordova Files ==="
+        cat config.xml
+        ls -la www/
         
     - name: Add Android platform
       run: |
         cordova platform remove android 2>/dev/null || true
-        cordova platform add android@12.0.0
+        cordova platform add android
         
     - name: Build APK
       run: |
-        echo "=== Building APK ==="
         cordova build android --debug --verbose
-        
-    - name: List build outputs
-      run: |
-        echo "=== Build Results ==="
-        find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
-        if [ -d "platforms/android" ]; then
-          echo "=== Android build directory ==="
-          ls -la platforms/android/app/build/outputs/apk/ || echo "No APK output directory"
-        fi
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: android-apk
-        path: |
-          platforms/android/app/build/outputs/apk/**/*.apk
-          **/*.apk
+        path: platforms/android/app/build/outputs/apk/debug/*.apk
         retention-days: 7
