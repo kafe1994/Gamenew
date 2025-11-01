@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 env:
-  ANDROID_VERSION: 33
-  ANDROID_BUILD_TOOLS_VERSION: 33.0.0
+  ANDROID_VERSION: 34
+  ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
   CORDOVA_VERSION: 12.0.0
 
 jobs:
@@ -51,14 +51,14 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
       
-    - name: Install specific Android packages
+    - name: Install Android packages
       run: |
         yes | sdkmanager "platforms;android-${{ env.ANDROID_VERSION }}"
         yes | sdkmanager "build-tools;${{ env.ANDROID_BUILD_TOOLS_VERSION }}"
         yes | sdkmanager "platform-tools"
         yes | sdkmanager "tools"
         
-    - name: Add Android SDK to PATH
+    - name: Setup environment
       run: |
         echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
         echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
@@ -67,272 +67,31 @@ jobs:
         
     - name: Verify installations
       run: |
-        echo "=== Node.js Version ==="
+        echo "=== Versions ==="
         node --version
-        echo "=== NPM Version ==="
         npm --version
-        echo "=== Cordova Version ==="
-        cordova --version || echo "Cordova not installed"
-        echo "=== Java Version ==="
+        cordova --version
         java -version
-        echo "=== Android SDK Version ==="
-        sdkmanager --version || echo "sdkmanager not found"
         
     - name: Check project structure
       run: |
         echo "=== Project Structure ==="
         ls -la
-        echo "=== Checking for config.xml ==="
-        if [ -f "config.xml" ]; then
-          echo "✅ config.xml found"
-          cat config.xml
-        else
-          echo "❌ config.xml not found - creating basic one"
-          # Crear config.xml básico si no existe
-          cordova create temp-app com.example.app AppName
-          cp temp-app/config.xml ./
-          rm -rf temp-app
-        fi
-        
-    - name: Create www directory if missing
-      run: |
-        if [ ! -d "www" ]; then
-          echo "⚠️ www directory not found - creating basic structure"
-          mkdir -p www
-          mkdir -p www/js
-          mkdir -p www/css
-          mkdir -p www/img
-          
-          # Crear index.html correctamente formado
-          cat > www/index.html << 'EOF'
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
-    <title>Mi Juego</title>
-    <link rel="stylesheet" type="text/css" href="css/style.css">
-</head>
-<body>
-    <div id="app">
-        <h1>Mi Juego</h1>
-        <div id="game-container"></div>
-    </div>
-    <script type="text/javascript" src="cordova.js"></script>
-    <script type="text/javascript" src="js/game.js"></script>
-</body>
-</html>
-EOF
-
-          # Crear game.js básico
-          cat > www/js/game.js << 'EOF'
-document.addEventListener('deviceready', onDeviceReady, false);
-
-function onDeviceReady() {
-    console.log('Cordova is ready!');
-    
-    // Aquí va la lógica de tu juego
-    initializeGame();
-}
-
-function initializeGame() {
-    console.log('Initializing game...');
-    
-    const gameContainer = document.getElementById('game-container');
-    if (gameContainer) {
-        gameContainer.innerHTML = '<p>Juego cargado correctamente</p>';
-    }
-    
-    // Agregar más lógica del juego aquí
-}
-
-// Prevent default touch behavior
-document.addEventListener('touchmove', function(event) {
-    event.preventDefault();
-}, false);
-
-// Handle back button on Android
-document.addEventListener('backbutton', function(event) {
-    event.preventDefault();
-    navigator.app.exitApp();
-}, false);
-EOF
-
-          # Crear style.css correcto
-          cat > www/css/style.css << 'EOF'
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-}
-
-html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    position: fixed;
-    background: #000;
-    color: #fff;
-    font-family: Arial, sans-serif;
-}
-
-body {
-    margin: 0;
-    padding: 0;
-    touch-action: manipulation;
-}
-
-#app {
-    width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-h1 {
-    font-size: 24px;
-    margin-bottom: 20px;
-    text-align: center;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-}
-
-#game-container {
-    width: 100%;
-    height: 70vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
-    margin: 10px;
-    padding: 20px;
-}
-
-#game-container p {
-    font-size: 18px;
-    text-align: center;
-}
-
-/* Responsive design */
-@media screen and (max-width: 768px) {
-    h1 {
-        font-size: 20px;
-    }
-    
-    #game-container {
-        height: 60vh;
-    }
-}
-
-@media screen and (max-width: 480px) {
-    h1 {
-        font-size: 18px;
-    }
-    
-    #game-container {
-        height: 50vh;
-        margin: 5px;
-        padding: 10px;
-    }
-}
-EOF
-
-          echo "✅ Basic project structure created"
-        fi
-
-    - name: Initialize Cordova project
-      run: |
-        echo "=== Initializing Cordova ==="
-        # Si no es un proyecto Cordova, inicializarlo
-        if [ ! -f "config.xml" ] || ! grep -q "widget" config.xml; then
-          echo "Initializing new Cordova project"
-          cordova create . com.gamenew.app GameNew
-        fi
+        echo "=== Cordova Files ==="
+        ls -la config.xml www/ platforms/ || echo "Some directories may not exist yet"
         
     - name: Add Android platform
       run: |
-        echo "=== Adding Android Platform ==="
-        # Remover platform si existe y agregar nueva
         cordova platform remove android 2>/dev/null || true
-        cordova platform add android@latest --verbose
+        cordova platform add android@latest
         
-    - name: Add basic plugins
+    - name: Build Android APK
       run: |
-        echo "=== Adding Basic Plugins ==="
-        cordova plugin add cordova-plugin-whitelist --verbose
-        cordova plugin add cordova-plugin-statusbar --verbose
+        cordova build android --debug
         
-    - name: Check Cordova project status
-      run: |
-        echo "=== Cordova Project Status ==="
-        cordova requirements
-        cordova platform ls
-        cordova plugin ls
-        
-    - name: Prepare Android project
-      run: |
-        echo "=== Preparing Android Project ==="
-        cordova prepare android --verbose
-        
-    - name: Build Debug APK
-      run: |
-        echo "=== Building Debug APK ==="
-        cordova build android --debug --verbose
-      continue-on-error: true
-      
-    - name: Check build results
-      run: |
-        echo "=== Checking Build Results ==="
-        echo "Current directory: $(pwd)"
-        echo "=== Listing platforms ==="
-        find platforms -type f -name "*.apk" 2>/dev/null || echo "No APK files found"
-        echo "=== Full project structure ==="
-        find . -name "*.apk" -type f 2>/dev/null || echo "No APK files in project"
-        echo "=== Android build outputs ==="
-        if [ -d "platforms/android" ]; then
-          find platforms/android -name "*.apk" -type f 2>/dev/null || echo "No APK files in android platform"
-          ls -la platforms/android/app/build/outputs/ 2>/dev/null || echo "No build outputs directory"
-        else
-          echo "Android platform directory not found"
-        fi
-        
-    - name: Upload any found APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: build-artifacts
-        path: |
-          platforms/android/app/build/outputs/**/*.apk
-          **/*.apk
+        name: android-apk
+        path: platforms/android/app/build/outputs/apk/debug/*.apk
         retention-days: 7
-        
-    - name: Upload build logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: build-logs
-        path: |
-          **/build.log
-          **/build-output.txt
-        retention-days: 7
-        
-    - name: Debug information
-      run: |
-        echo "=== Debug Information ==="
-        echo "Working directory: $(pwd)"
-        echo "Directory contents:"
-        ls -la
-        echo "Cordova info:"
-        cordova info 2>/dev/null || echo "Cordova info failed"
-        echo "Android targets:"
-        sdkmanager --list 2>/dev/null | grep "android-${{ env.ANDROID_VERSION }}" || echo "Cannot list Android targets"
