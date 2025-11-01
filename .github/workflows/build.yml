@@ -25,7 +25,7 @@ jobs:
           npm config set fund false
           npm config set loglevel error
           npm config set unsafe-perm true
-          export CI=true
+          echo "CI=true" >> $GITHUB_ENV
 
       - name: Set up Java JDK 11
         uses: actions/setup-java@v4
@@ -44,28 +44,33 @@ jobs:
           npm install -g cordova@12.0.0
           cordova --version
 
-      - name: Install project npm deps (if package.json present)
-        if: files.exists('package.json')
+      - name: Install project npm deps if package.json exists
         run: |
-          npm ci
+          if [ -f package.json ]; then
+            npm ci
+          else
+            echo "No package.json — skipping npm ci"
+          fi
 
-      - name: Create Cordova project and copy www (if needed)
+      - name: Create Cordova project, copy www and build
         run: |
-          # create project in cordova-build only if not exists
+          # crear el proyecto si no existe
           if [ ! -d "cordova-build" ]; then
             cordova create cordova-build com.agarroles.game "Agar Roles"
           fi
+
           cd cordova-build
 
+          # copiar contenido www si existe en el repo root
           if [ -d "../www" ]; then
             cp -r ../www/* www/ || true
             echo "Archivos www copiados"
           fi
 
-          # evitar problemas con cordova-fetch instalando la plataforma localmente
+          # instalar cordova-android LOCALMENTE dentro de cordova-build para evitar cordova-fetch
           npm install cordova-android@12.0.0 --no-save
 
-          # añadir la plataforma desde node_modules (más fiable en CI)
+          # asegurarse de eliminar plataforma previa y luego añadir desde node_modules
           cordova platform remove android || true
           cordova platform add ./node_modules/cordova-android
 
@@ -79,13 +84,13 @@ jobs:
           path: cordova-build/platforms/android/app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
-      - name: (Optional) Build release APK
+      # Si quieres firmar y generar release, activa este bloque y añade tu keystore como secret
+      - name: (Optional) Build and upload release APK
         if: false
         run: |
           cd cordova-build
-          # ajustar signingConfigs en platforms/android/gradle.properties / build.gradle según sea necesario
+          # ajustar signingConfigs si es necesario (o usar gradle signingProperties)
           cordova build android --release
-
       - name: Upload release APK artifact (if exists)
         if: always()
         uses: actions/upload-artifact@v4
