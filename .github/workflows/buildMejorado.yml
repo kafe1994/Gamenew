@@ -15,17 +15,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '16'
-
-      - name: Install Cordova and Android platform
-        run: |
-          npm install -g cordova@9.0.0 cordova-android@8.0.0
+          node-version: '18'
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '17'
 
       - name: Install Android SDK
         run: |
@@ -34,30 +30,35 @@ jobs:
           unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
           mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
           echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
           echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
 
       - name: Install Android packages
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-28" "build-tools;28.0.3"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+
+      - name: Install Cordova
+        run: |
+          npm install -g cordova@11.0.0
 
       - name: Create and build project
         run: |
-          mkdir -p myapp/www
+          # Verificar Java version
+          java -version
           
-          # Crear archivos básicos sin heredoc
-          echo '<!DOCTYPE html><html><head><title>Agar Roles</title></head><body><h1>Hello Cordova</h1></body></html>' > myapp/www/index.html
+          cordova create myapp com.agarroles.game "Agar Roles"
+          cd myapp
           
-          # Si tienes archivos www, usarlos
-          if [ -d "www" ]; then
-            cp -r www/* myapp/www/
+          # Copiar archivos si existen
+          if [ -d "../www" ]; then
+            cp -r ../www/* www/
             echo "Archivos www copiados"
           fi
           
-          cd myapp
           cordova platform add android
-          cordova build android
+          cordova build android --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
