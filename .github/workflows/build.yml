@@ -25,12 +25,10 @@ jobs:
         
     - name: Install Android SDK
       run: |
-        # Usar versión RECIENTE del Android SDK
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p android-sdk/cmdline-tools
         unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
         mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
-        
         echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
         echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
@@ -38,7 +36,6 @@ jobs:
         
     - name: Install Android packages
       run: |
-        # Aceptar licencias e instalar paquetes COMPATIBLES con Cordova 11
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
         
@@ -49,18 +46,15 @@ jobs:
         
     - name: Create and build project
       run: |
-        # Limpiar cache para evitar problemas
         npm cache clean --force
-        
         cordova create cordova-build com.agarroles.game "Agar Roles"
         cd cordova-build
         
         if [ -d "../www" ]; then
           cp -r ../www/* www/
-          echo "✅ Archivos www copiados"
+          echo "Archivos www copiados"
         fi
         
-        # Agregar plataforma Android (Cordova 11 elegirá versión compatible automáticamente)
         cordova platform add android
         cordova build android --debug
         
