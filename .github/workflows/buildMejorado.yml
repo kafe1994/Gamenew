@@ -39,25 +39,24 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: Install Cordova
+      - name: Install Cordova with specific Android platform
         run: |
           npm install -g cordova@11.0.0
+          # Instalar la plataforma Android por separado
+          npm install -g cordova-android@11.0.0
 
       - name: Create and build project
         run: |
-          # Verificar Java version
-          java -version
-          
           cordova create myapp com.agarroles.game "Agar Roles"
           cd myapp
           
-          # Copiar archivos si existen
           if [ -d "../www" ]; then
             cp -r ../www/* www/
             echo "Archivos www copiados"
           fi
           
-          cordova platform add android
+          # Forzar versión específica de Android
+          cordova platform add android@11.0.0
           cordova build android --debug
 
       - name: Upload APK
