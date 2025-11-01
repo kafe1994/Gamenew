@@ -17,11 +17,24 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Clean npm cache
+        run: npm cache clean --force
+
+      - name: Install Cordova
+        run: |
+          npm install -g cordova@11.0.0
+          cordova --version
+
+      - name: Install project dependencies
+        run: |
+          npm install
+          npm list
+
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '11'
 
       - name: Install Android SDK
         run: |
@@ -30,22 +43,30 @@ jobs:
           unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
           mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
           echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
           echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
 
-      - name: Install Android packages
+      - name: Accept Android licenses
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Install Cordova and build
+      - name: Install Android platform
         run: |
-          npm install -g cordova
-          npm install
-          cordova platform add android
-          cordova build android --debug
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+
+      - name: Add Android platform to Cordova
+        run: |
+          cordova platform remove android || true
+          cordova platform add android --verbose
+
+      - name: Build APK
+        run: |
+          cordova build android --debug --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: agar-roles-apk
-          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          path: platforms/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
