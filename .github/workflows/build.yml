@@ -3,15 +3,9 @@ name: Build APK
 on:
   push:
     branches: [ main, develop ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
-
-env:
-  ANDROID_VERSION: 34
-  ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
-  CORDOVA_VERSION: 12.0.0
 
 jobs:
   build:
@@ -20,78 +14,121 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
+      
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
         
-    - name: Cache Node modules
-      uses: actions/cache@v4
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-          
-    - name: Install dependencies
+    - name: Check project structure
       run: |
-        npm ci
-        npm install -g cordova@${{ env.CORDOVA_VERSION }}
+        echo "=== Current Structure ==="
+        ls -la
+        echo "=== Checking for essential files ==="
+        if [ -f "config.xml" ]; then
+          echo "✅ config.xml found"
+        else
+          echo "❌ config.xml not found"
+        fi
+        if [ -d "www" ]; then
+          echo "✅ www directory found"
+          ls -la www/
+        else
+          echo "❌ www directory not found"
+        fi
+        
+    - name: Create package.json if missing
+      run: |
+        if [ ! -f "package.json" ]; then
+          echo "Creating package.json..."
+          cat > package.json << 'EOF'
+{
+  "name": "gamenew",
+  "version": "1.0.0",
+  "description": "Mi juego con Cordova",
+  "main": "index.js",
+  "scripts": {
+    "build": "cordova build android",
+    "prepare": "cordova prepare"
+  },
+  "dependencies": {
+    "cordova-android": "^12.0.0"
+  },
+  "devDependencies": {
+    "cordova": "^12.0.0"
+  },
+  "keywords": [
+    "cordova",
+    "android",
+    "game"
+  ],
+  "author": "kafe1994",
+  "license": "MIT"
+}
+EOF
+          echo "✅ package.json created"
+        else
+          echo "✅ package.json already exists"
+          cat package.json
+        fi
+        
+    - name: Install Cordova globally
+      run: |
+        npm install -g cordova@12.0.0
+        
+    - name: Install project dependencies
+      run: |
+        npm install
         
     - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
-        distribution: 'zulu'
+        distribution: 'temurin'
         java-version: '11'
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
-      
-    - name: Install Android packages
+        
+    - name: Install Android SDK
       run: |
-        yes | sdkmanager "platforms;android-${{ env.ANDROID_VERSION }}"
-        yes | sdkmanager "build-tools;${{ env.ANDROID_BUILD_TOOLS_VERSION }}"
+        yes | sdkmanager "platforms;android-34"
+        yes | sdkmanager "build-tools;34.0.0"
         yes | sdkmanager "platform-tools"
-        yes | sdkmanager "tools"
         
-    - name: Setup environment
+    - name: Initialize Cordova project
       run: |
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/tools" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/tools/bin" >> $GITHUB_PATH
-        
-    - name: Verify installations
-      run: |
-        echo "=== Versions ==="
-        node --version
-        npm --version
-        cordova --version
-        java -version
-        
-    - name: Check project structure
-      run: |
-        echo "=== Project Structure ==="
-        ls -la
-        echo "=== Cordova Files ==="
-        ls -la config.xml www/ platforms/ || echo "Some directories may not exist yet"
+        if [ ! -f "config.xml" ]; then
+          echo "Initializing Cordova project..."
+          cordova create . com.gaming.enhancedagar GameNew
+        else
+          echo "✅ Cordova project already initialized"
+        fi
         
     - name: Add Android platform
       run: |
         cordova platform remove android 2>/dev/null || true
-        cordova platform add android@latest
+        cordova platform add android@12.0.0
         
-    - name: Build Android APK
+    - name: Build APK
       run: |
-        cordova build android --debug
+        echo "=== Building APK ==="
+        cordova build android --debug --verbose
+        
+    - name: List build outputs
+      run: |
+        echo "=== Build Results ==="
+        find . -name "*.apk" -type f 2>/dev/null || echo "No APK files found"
+        if [ -d "platforms/android" ]; then
+          echo "=== Android build directory ==="
+          ls -la platforms/android/app/build/outputs/apk/ || echo "No APK output directory"
+        fi
         
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: android-apk
-        path: platforms/android/app/build/outputs/apk/debug/*.apk
+        path: |
+          platforms/android/app/build/outputs/apk/**/*.apk
+          **/*.apk
         retention-days: 7
