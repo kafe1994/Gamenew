@@ -1,17 +1,8 @@
-name: Build APK
+name: Build APK Simple
 
 on:
   push:
-    branches: [main, develop]
-    tags: ['v*']
-  pull_request:
-    branches: [main, develop]
-  workflow_dispatch:
-
-env:
-  ANDROID_VERSION: 33
-  ANDROID_BUILD_TOOLS_VERSION: 33.0.0
-  CORDOVA_VERSION: 12.0.0
+    branches: [main]
 
 jobs:
   build:
@@ -20,115 +11,45 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Cache Node modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies
-        run: |
-          npm ci || npm install
-          npm install -g cordova@${{ env.CORDOVA_VERSION }}
+      - name: Install Cordova
+        run: npm install -g cordova@11.0.0
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '11'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-
-      - name: Add Android SDK to PATH
+      - name: Install Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          mkdir -p android-sdk/cmdline-tools
+          unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
+          mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
+          echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
+          echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
 
-      - name: Verify Android SDK
+      - name: Install Android packages
         run: |
-          echo "ANDROID_HOME: $ANDROID_SDK_ROOT"
-          which adb
-          adb --version
-          sdkmanager --version
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33"
 
-      - name: Prepare Cordova platform
+      - name: Create Cordova project
         run: |
-          cordova platform remove android || true
-          cordova platform add android --verbose
+          cordova create myapp com.agarroles.game "Agar Roles"
+          cd myapp
+          cordova platform add android@10.0.0
+          cordova build android --debug
 
-      - name: Add required Cordova plugins
-        run: |
-          cordova plugin add cordova-plugin-whitelist --verbose
-          cordova plugin add cordova-plugin-statusbar --verbose
-          cordova plugin add cordova-plugin-vibration --verbose
-          cordova plugin add cordova-plugin-splashscreen --verbose
-
-      - name: Build Debug APK
-        run: cordova build android --debug --verbose
-
-      - name: Build Release APK
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-        run: |
-          if [ -n "${{ secrets.ANDROID_SIGNING_KEY }}" ] && [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
-            echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 -d > release.keystore
-            cordova build android --release -- --keystore=release.keystore --storePassword=${{ secrets.KEYSTORE_PASSWORD }} --alias=release --password=${{ secrets.KEY_PASSWORD }}
-          else
-            echo "Release signing keys not available, building unsigned APK"
-            cordova build android --release --verbose
-          fi
-
-      - name: Upload Debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: agar-roles-debug-apk
-          path: platforms/android/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-        with:
-          name: agar-roles-release-apk
-          path: platforms/android/app/build/outputs/apk/release/*.apk
-          retention-days: 30
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: |
-          npm ci || npm install
-
-      - name: Lint JavaScript
-        run: |
-          npm install -g jshint
-          jshint www/js/ || true
-
-      - name: Check HTML validity
-        run: |
-          if grep -q '<!DOCTYPE html>' www/index.html; then
-            echo "Valid HTML5 doctype found"
-          else
-            echo "Missing HTML5 doctype"
-            exit 1
-          fi
+          name: app-debug
+          path: myapp/platforms/android/app/build/outputs/apk/debug/*.apk
