@@ -20,7 +20,6 @@ jobs:
         
     - name: Install Android SDK and tools
       run: |
-        # Descargar Android Command Line Tools
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p android-sdk/cmdline-tools
         unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
@@ -30,7 +29,6 @@ jobs:
         export ANDROID_SDK_ROOT=$PWD/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
         
-        # Aceptar licencias e instalar componentes necesarios
         yes | sdkmanager --licenses
         sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34" "cmdline-tools;latest"
         
@@ -39,18 +37,15 @@ jobs:
         
     - name: Create Android project structure manually
       run: |
-        # Crear estructura de proyecto Android manualmente
         mkdir -p myapp/app/src/main/assets/www
         mkdir -p myapp/app/src/main/java/com/agarroles/game
         mkdir -p myapp/app/src/main/res
         
-        # Copiar archivos web si existen
         if [ -d "www" ]; then
           cp -r www/* myapp/app/src/main/assets/www/
           echo "✅ Archivos www copiados"
         else
-          # Crear archivo HTML básico si no existe www
-          cat > myapp/app/src/main/assets/www/index.html << 'EOF'
+          cat > myapp/app/src/main/assets/www/index.html << 'ENDOFFILE'
 <!DOCTYPE html>
 <html>
 <head>
@@ -62,11 +57,10 @@ jobs:
     <p>Game content here</p>
 </body>
 </html>
-EOF
+ENDOFFILE
         fi
         
-        # Crear AndroidManifest.xml
-        cat > myapp/app/src/main/AndroidManifest.xml << 'EOF'
+        cat > myapp/app/src/main/AndroidManifest.xml << 'ENDOFFILE'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.agarroles.game">
@@ -91,27 +85,31 @@ EOF
 
     <uses-permission android:name="android.permission.INTERNET" />
 </manifest>
-EOF
+ENDOFFILE
 
-        # Crear MainActivity.java
-        cat > myapp/app/src/main/java/com/agarroles/game/MainActivity.java << 'EOF'
+        cat > myapp/app/src/main/java/com/agarroles/game/MainActivity.java << 'ENDOFFILE'
 package com.agarroles.game;
 
 import android.os.Bundle;
-import org.apache.cordova.*;
+import android.webkit.WebView;
 
-public class MainActivity extends CordovaActivity {
+public class MainActivity extends android.app.Activity {
+    private WebView webView;
+    
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        super.init();
-        loadUrl(launchUrl);
+        
+        webView = new WebView(this);
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.loadUrl("file:///android_asset/www/index.html");
+        
+        setContentView(webView);
     }
 }
-EOF
+ENDOFFILE
 
-        # Crear build.gradle
-        cat > myapp/app/build.gradle << 'EOF'
+        cat > myapp/app/build.gradle << 'ENDOFFILE'
 apply plugin: 'com.android.application'
 
 android {
@@ -141,16 +139,15 @@ dependencies {
     implementation fileTree(dir: 'libs', include: '*.jar')
     implementation 'androidx.appcompat:appcompat:1.6.1'
 }
-EOF
+ENDOFFILE
 
-        # Crear gradle wrapper properties
-        cat > myapp/gradle/wrapper/gradle-wrapper.properties << 'EOF'
+        cat > myapp/gradle/wrapper/gradle-wrapper.properties << 'ENDOFFILE'
 distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
 distributionUrl=https\://services.gradle.org/distributions/gradle-7.5-bin.zip
 zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists
-EOF
+ENDOFFILE
 
         echo "✅ Estructura de proyecto Android creada"
         
@@ -160,16 +157,12 @@ EOF
         export ANDROID_SDK_ROOT=$PWD/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
         
-        # Descargar y usar Gradle
         wget -q https://services.gradle.org/distributions/gradle-7.5-bin.zip
         unzip -q gradle-7.5-bin.zip
         export PATH=$PWD/gradle-7.5/bin:$PATH
         
         cd myapp
-        
-        # Construir APK
         gradle assembleDebug --no-daemon --stacktrace
-        
         cd ..
         
     - name: Upload APK
