@@ -1,4 +1,4 @@
-name: Build APK with Cordova
+name: Build APK with Cordova 9
 
 on:
   push:
@@ -15,58 +15,44 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '16'  # Versión más compatible
+        cache: 'npm'
         
-    - name: Setup Java JDK 17
+    - name: Setup Java JDK 11
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: '11'
         
-    - name: Install Android SDK and setup PATH correctly
+    - name: Install Android SDK
       run: |
-        # Descargar Android SDK
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
         mkdir -p android-sdk/cmdline-tools
-        unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
+        unzip -q commandlinetools-linux-8512546_latest.zip -d android-sdk/cmdline-tools
         mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
         
-        # Configurar variables de entorno CORRECTAMENTE
         echo "ANDROID_HOME=$PWD/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$PWD/android-sdk" >> $GITHUB_ENV
         echo "$PWD/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$PWD/android-sdk/platform-tools" >> $GITHUB_PATH
         
-    - name: Install Android packages
-      run: |
-        # Aceptar licencias e instalar paquetes
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;30.0.3" "platforms;android-30"
         
-    - name: Install Cordova and Android platform GLOBALLY
+    - name: Install Cordova 9 (estable)
       run: |
-        npm install -g cordova@12.0.0
-        npm install -g cordova-android@12.0.0
+        npm install -g cordova@9.0.0
         cordova --version
         
-    - name: Create Cordova project
+    - name: Create and build project
       run: |
         cordova create cordova-build com.agarroles.game "Agar Roles"
         cd cordova-build
         
-        # Copiar archivos del juego
         if [ -d "../www" ]; then
           cp -r ../www/* www/
-          echo "✅ Archivos www copiados"
-        else
-          echo "⚠️ No hay archivos www, creando básico"
-          echo "<html><body><h1>Agar Roles Game</h1></body></html>" > www/index.html
         fi
         
-    - name: Build APK
-      run: |
-        cd cordova-build
-        cordova platform add android --nofetch
+        # Cordova 9 funciona mejor con platform add
+        cordova platform add android@9.0.0
         cordova build android --debug
         
     - name: Upload APK
@@ -74,4 +60,3 @@ jobs:
       with:
         name: android-apk
         path: cordova-build/platforms/android/app/build/outputs/apk/debug/*.apk
-        retention-days: 7
