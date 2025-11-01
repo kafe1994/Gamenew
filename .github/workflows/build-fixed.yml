@@ -23,14 +23,22 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
         
-    - name: Install Cordova globally
+    - name: Install Cordova and Android platform manually
       run: |
+        # Instalar Cordova
         npm install -g cordova@12.0.0
+        
+        # Instalar cordova-android manualmente como dependencia global
+        npm install -g cordova-android@12.0.0
+        
+        # Verificar instalaciones
         cordova --version
+        echo "Cordova Android version:"
+        npm list -g cordova-android
         
     - name: Setup Android SDK in home directory
       run: |
-        # Instalar Android SDK en el directorio home (sin permisos root)
+        # Instalar Android SDK en el directorio home
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p $HOME/android-sdk/cmdline-tools
         unzip -q commandlinetools-linux-9477386_latest.zip -d $HOME/android-sdk/cmdline-tools
@@ -46,37 +54,39 @@ jobs:
         yes | sdkmanager --licenses
         sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
         
-    - name: Verify installations
-      run: |
-        echo "=== Java Version ==="
-        java -version
-        echo "=== Android SDK ==="
-        sdkmanager --version
-        echo "=== Cordova ==="
-        cordova --version
-        
     - name: Check project structure
       run: |
         echo "=== Project Files ==="
         ls -la
         if [ -f "config.xml" ]; then
           echo "✅ config.xml found"
+          # Crear platforms.json si no existe para evitar errores de Cordova
+          if [ ! -f "platforms.json" ]; then
+            echo '{"ios":"{}","android":"{}"}' > platforms.json
+          fi
         else
-          echo "❌ config.xml not found"
+          echo "❌ config.xml not found - creating basic one"
+          cordova create . com.example.app MyApp
         fi
         
-    - name: Add Android platform
+    - name: Add Android platform using global installation
       run: |
-        cordova platform remove android 2>/dev/null || true
-        cordova platform add android@12.0.0
+        echo "=== Adding Android platform ==="
+        # Usar la instalación global de cordova-android
+        cordova platform add android --nofetch --nosave
         
-    - name: Build APK
+    - name: Prepare and build APK
       run: |
+        echo "=== Preparing and building APK ==="
+        cordova prepare android
         cordova build android --debug --verbose
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: android-apk
-        path: platforms/android/app/build/outputs/apk/debug/*.apk
+        path: |
+          platforms/android/app/build/outputs/apk/**/*.apk
+          **/*.apk
         retention-days: 7
