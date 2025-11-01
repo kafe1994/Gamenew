@@ -36,14 +36,12 @@ jobs:
     - name: Install Cordova ONLY (skip npm install)
       run: |
         echo "=== Installing Cordova globally ==="
-        # Instalar Cordova sin usar el package.json del proyecto
         npm install -g cordova@12.0.0 --force
         cordova --version
         
     - name: Create minimal package.json for build
       run: |
         echo "=== Creating minimal package.json ==="
-        # Crear un package.json mínimo para evitar conflictos
         cat > package-minimal.json << 'EOF'
 {
   "name": "agar-rolles-game-build",
@@ -53,7 +51,6 @@ jobs:
   }
 }
 EOF
-        # Usar el package.json mínimo temporalmente
         cp package-minimal.json package.json
         cat package.json
         
@@ -99,8 +96,6 @@ EOF
           mkdir -p www/js
           mkdir -p www/css
           mkdir -p www/img
-          
-          # Crear index.html básico
           cat > www/index.html << 'EOF'
 <!DOCTYPE html>
 <html>
