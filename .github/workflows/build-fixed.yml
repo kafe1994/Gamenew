@@ -1,4 +1,4 @@
-name: Build APK Simple
+name: Build APK
 
 on:
   push:
@@ -12,58 +12,68 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup environment
+    - name: Setup environment and build APK
       run: |
-        # Instalar todo en un solo paso para evitar problemas de path
-        apt-get update
-        apt-get install -y wget unzip nodejs npm
-        
-        # Setup Java 17
+        # Actualizar e instalar dependencias del sistema
+        sudo apt-get update
+        sudo apt-get install -y wget unzip nodejs npm
+
+        # Configurar Java 17
         wget -q https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz
         tar -xzf openjdk-17.0.2_linux-x64_bin.tar.gz
         export JAVA_HOME=$PWD/jdk-17.0.2
         export PATH=$JAVA_HOME/bin:$PATH
-        
-        # Setup Android SDK
+
+        # Configurar Android SDK
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
         mkdir -p android-sdk/cmdline-tools
         unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
         mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
-        
+
         export ANDROID_HOME=$PWD/android-sdk
         export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-        
+
+        # Aceptar licencias e instalar paquetes Android
         yes | sdkmanager --licenses
         sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
-        
+
         # Instalar Cordova
-        npm install -g cordova@12.0.0 cordova-android@12.0.0
-        
-    - name: Build APK
-      run: |
-        export ANDROID_HOME=$PWD/android-sdk
-        export JAVA_HOME=$PWD/jdk-17.0.2
-        export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-        
-        # Construir directamente
-        cordova create build-dir com.agarroles.game "Agar Roles"
-        cd build-dir
-        
-        # Copiar tus archivos www si existen
+        npm install -g cordova@12.0.0
+
+        # Crear proyecto Cordova temporal
+        cordova create temp-app com.agarroles.game "Agar Roles Game"
+        cd temp-app
+
+        # Copiar tus archivos del juego si existen
         if [ -d "../www" ]; then
+          echo "✅ Copiando archivos www del proyecto..."
           cp -r ../www/* www/
+        else
+          echo "⚠️ No se encontró directorio www, usando estructura básica"
         fi
-        
-        cordova platform add android
+
+        # Agregar plataforma Android y construir
+        cordova platform add android@12.0.0
         cordova build android --debug
-        
-        # Mover APK al directorio raíz
-        mv platforms/android/app/build/outputs/apk/debug/*.apk ../
+
+        # Mover APK al directorio principal
+        mv platforms/android/app/build/outputs/apk/debug/app-debug.apk ../app-debug.apk
         cd ..
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
-        path: "*.apk"
+        path: app-debug.apk
         retention-days: 7
+        
+    - name: Show build result
+      run: |
+        if [ -f "app-debug.apk" ]; then
+          echo "✅ ✅ ✅ BUILD SUCCESSFUL! APK created."
+          ls -lh app-debug.apk
+        else
+          echo "❌ BUILD FAILED - No APK found"
+          echo "Current directory contents:"
+          ls -la
+        fi
