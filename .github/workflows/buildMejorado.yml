@@ -17,9 +17,6 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Clean npm cache
-        run: npm cache clean --force
-
       - name: Install Cordova
         run: |
           npm install -g cordova@11.0.0
@@ -28,7 +25,6 @@ jobs:
       - name: Install project dependencies
         run: |
           npm install
-          npm list
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -49,24 +45,22 @@ jobs:
 
       - name: Accept Android licenses
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Install Android platform
         run: |
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33"
 
       - name: Add Android platform to Cordova
         run: |
-          cordova platform remove android || true
-          cordova platform add android --verbose
+          cordova platform add android
 
       - name: Build APK
         run: |
-          cordova build android --debug --verbose
+          cordova build android --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: agar-roles-apk
           path: platforms/android/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
