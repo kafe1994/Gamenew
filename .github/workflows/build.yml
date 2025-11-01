@@ -14,22 +14,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      # 👇 Instala Node sin intentar usar el cache interno (para evitar el error)
+      - name: Setup Node.js (safe mode)
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          cache: false
 
-      - name: Configure manual npm cache
+      # 👇 Configura manualmente un cache limpio para npm
+      - name: Prepare npm cache manually
         run: |
           mkdir -p ${{ runner.temp }}/npm-cache
           npm config set cache ${{ runner.temp }}/npm-cache --global
-          echo "✅ NPM cache configured en: ${{ runner.temp }}/npm-cache"
+          echo "✅ Manual npm cache configurado: ${{ runner.temp }}/npm-cache"
 
       - name: Install Cordova CLI
         run: npm install -g cordova@11
 
-      - name: Setup Android SDK (latest compatible)
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 12.0
@@ -38,17 +40,17 @@ jobs:
             platforms;android-34
             build-tools;34.0.0
 
-      - name: Install project dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: Build Cordova Android APK
+      - name: Build Cordova APK
         run: |
           cordova platform remove android || true
           cordova platform add android@12.0.0
-          cordova build android --release
+          cordova build android --debug
 
-      - name: Upload generated APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Cordova-Android-APK
-          path: platforms/android/app/build/outputs/apk/release/*.apk
+          path: platforms/android/app/build/outputs/apk/debug/*.apk
