@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK Simple
 
 on:
   push:
@@ -12,81 +12,58 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Setup Java JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        
-    - name: Install Cordova and Android platform manually
+    - name: Setup environment
       run: |
-        # Instalar Cordova
-        npm install -g cordova@12.0.0
+        # Instalar todo en un solo paso para evitar problemas de path
+        apt-get update
+        apt-get install -y wget unzip nodejs npm
         
-        # Instalar cordova-android manualmente como dependencia global
-        npm install -g cordova-android@12.0.0
+        # Setup Java 17
+        wget -q https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz
+        tar -xzf openjdk-17.0.2_linux-x64_bin.tar.gz
+        export JAVA_HOME=$PWD/jdk-17.0.2
+        export PATH=$JAVA_HOME/bin:$PATH
         
-        # Verificar instalaciones
-        cordova --version
-        echo "Cordova Android version:"
-        npm list -g cordova-android
-        
-    - name: Setup Android SDK in home directory
-      run: |
-        # Instalar Android SDK en el directorio home
+        # Setup Android SDK
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        unzip -q commandlinetools-linux-9477386_latest.zip -d $HOME/android-sdk/cmdline-tools
-        mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+        mkdir -p android-sdk/cmdline-tools
+        unzip -q commandlinetools-linux-9477386_latest.zip -d android-sdk/cmdline-tools
+        mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
         
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+        export ANDROID_HOME=$PWD/android-sdk
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
         
-    - name: Accept licenses and install Android packages
-      run: |
         yes | sdkmanager --licenses
         sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
         
-    - name: Check project structure
+        # Instalar Cordova
+        npm install -g cordova@12.0.0 cordova-android@12.0.0
+        
+    - name: Build APK
       run: |
-        echo "=== Project Files ==="
-        ls -la
-        if [ -f "config.xml" ]; then
-          echo "✅ config.xml found"
-          # Crear platforms.json si no existe para evitar errores de Cordova
-          if [ ! -f "platforms.json" ]; then
-            echo '{"ios":"{}","android":"{}"}' > platforms.json
-          fi
-        else
-          echo "❌ config.xml not found - creating basic one"
-          cordova create . com.example.app MyApp
+        export ANDROID_HOME=$PWD/android-sdk
+        export JAVA_HOME=$PWD/jdk-17.0.2
+        export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+        
+        # Construir directamente
+        cordova create build-dir com.agarroles.game "Agar Roles"
+        cd build-dir
+        
+        # Copiar tus archivos www si existen
+        if [ -d "../www" ]; then
+          cp -r ../www/* www/
         fi
         
-    - name: Add Android platform using global installation
-      run: |
-        echo "=== Adding Android platform ==="
-        # Usar la instalación global de cordova-android
-        cordova platform add android --nofetch --nosave
+        cordova platform add android
+        cordova build android --debug
         
-    - name: Prepare and build APK
-      run: |
-        echo "=== Preparing and building APK ==="
-        cordova prepare android
-        cordova build android --debug --verbose
+        # Mover APK al directorio raíz
+        mv platforms/android/app/build/outputs/apk/debug/*.apk ../
+        cd ..
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: android-apk
-        path: |
-          platforms/android/app/build/outputs/apk/**/*.apk
-          **/*.apk
+        path: "*.apk"
         retention-days: 7
