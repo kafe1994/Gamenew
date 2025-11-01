@@ -81,29 +81,33 @@ jobs:
 
       - name: Build Debug APK
         run: cordova build android --debug --verbose
-        id: build_debug
 
       - name: Build Release APK
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         run: |
           if [ -n "${{ secrets.ANDROID_SIGNING_KEY }}" ] && [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
             echo "${{ secrets.ANDROID_SIGNING_KEY }}" | base64 -d > release.keystore
-            export KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}"
-            export KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}"
-            
-            cat >> config.xml << EOF
-<platform name="android">
-  <keystore path="release.keystore" keystorepass="\${KEYSTORE_PASSWORD}" alias="release" password="\${KEY_PASSWORD}"/>
-</platform>
-EOF
+            cat > keystore-config.json << 'CONFIG'
+{
+  "android": {
+    "release": {
+      "keystore": "release.keystore",
+      "storePassword": "$KEYSTORE_PASSWORD",
+      "alias": "release",
+      "password": "$KEY_PASSWORD",
+      "keystoreType": ""
+    }
+  }
+}
+CONFIG
+            KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}" KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}" cordova build android --release --verbose
           else
             echo "⚠️ Release signing keys not available, building unsigned APK"
+            cordova build android --release --verbose
           fi
-          cordova build android --release --verbose
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: agar-roles-debug-apk
           path: platforms/android/app/build/outputs/apk/debug/*.apk
@@ -111,16 +115,11 @@ EOF
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
-        if: always() && (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         with:
           name: agar-roles-release-apk
           path: platforms/android/app/build/outputs/apk/release/*.apk
           retention-days: 30
-
-      - name: Clean up
-        if: always()
-        run: |
-          ls -la platforms/android/app/build/outputs/apk/
 
   lint:
     runs-on: ubuntu-latest
